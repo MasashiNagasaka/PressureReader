@@ -1,0 +1,63 @@
+# Temporary files
+tmp/
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+.next/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+
+# Playwright screenshots (auto-moved to artifacts/screenshots/ by hook)
+/*.png
+/*.jpeg
+/*.jpg
+artifacts/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+*.egg-info/
+
+# SQLite DB
+data/
+
+# Lock files (keep package-lock.json for consistency)
+# yarn.lock
+
+.claude/settings.local.json
+.playwright-mcp/
+.python-version

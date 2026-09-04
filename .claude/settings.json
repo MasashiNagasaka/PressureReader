@@ -1,0 +1,59 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(prd-writing)",
+      "Skill(functional-design)",
+      "Skill(architecture-design)",
+      "Skill(repository-structure)",
+      "Skill(development-guidelines)",
+      "Skill(glossary-creation)",
+      "Edit(/.claude/skills/architecture-design/**)",
+      "Edit(/.claude/skills/steering/**)",
+      "Edit(/.claude/skills/testing/**)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'FILE=$(jq -r \".tool_input.file_path // .tool_input.path // empty\" <<< \"$(cat)\"); PROTECTED=\".eslintrc eslint.config biome.json .prettierrc tsconfig.json .golangci.yml lefthook.yml .ruff.toml ruff.toml\"; for p in $PROTECTED; do case \"$FILE\" in *\"$p\"*) echo \"BLOCKED: $FILE is a protected config file. Fix the code, not the linter config.\" >&2; exit 2;; esac; done; case \"$FILE\" in *.env|*.env.*|*credentials*|*.key) echo \"BLOCKED: $FILE is a sensitive file. Do not edit credentials or environment files directly.\" >&2; exit 2;; esac'"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'CMD=$(jq -r \".tool_input.command // empty\" <<< \"$(cat)\"); case \"$CMD\" in *--no-verify*) echo \"BLOCKED: --no-verify is not allowed. Fix the issues that pre-commit hooks detect.\" >&2; exit 2;; esac'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-lint.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__playwright__browser_take_screenshot",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/post-screenshot-cleanup.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
