@@ -7,7 +7,7 @@
 
 ## 概要
 PressureReaderは、感圧画像（PNG）から圧力値を算出し、可視化・保存するデスクトップ解析ツールです。  
-v3.5.0では「画面リセット」機能を追加予定です。
+v3.5.0では「画面リセット」機能を追加予定です（Python実行直後の初期状態へ復帰）。
 
 ## 主な機能
 - PNG読込と解析条件復元（メタデータ）
@@ -16,6 +16,7 @@ v3.5.0では「画面リセット」機能を追加予定です。
 - 解析条件のPNG保存 / 複製
 - 選択範囲のExcel出力（xlsx）
 - PDF=>PNG変換
+- 画面リセット（起動直後状態への復帰）
 
 ## スクリーンショット
 - 追加予定（`docs/screenshots/`）
@@ -54,4 +55,3 @@ C:\nagasaka\python\testPressR\Scripts\python.exe src\PressReader_v3.5.0.py
 - 開発ガイドライン: `docs/development-guidelines.md`
 - 用語集: `docs/glossary.md`
 - ADR: `docs/adr/`
-
