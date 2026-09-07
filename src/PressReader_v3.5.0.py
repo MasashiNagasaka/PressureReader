@@ -56,6 +56,7 @@ mm2fontsize = 12
 
 moving_point = None
 dragging = False
+reset_confirm_open = False
 
 # 多角形選択モード用
 polygon_points = []
@@ -2721,6 +2722,36 @@ button_Region_mode.state(['selected'])
 def clear_selectarea():
     global polygon_points, point_ids, polygon_id, moving_point, dragging
     global dragging_handle, center_x, center_y, radius, circle_id, oval_handles, radius_x, radius_y
+    canvas.delete("rect", "text", "line", "mark", "polygon", "circle")
+    polygon_points = []
+    point_ids = []
+    polygon_id = None
+    moving_point = None
+    dragging = False
+    dragging_handle = None
+    center_x = center_y = radius = 0
+    circle_id = None
+    oval_handles = [None] * 4
+    radius_x = radius_y = 0
+    atai_ave_entry.delete(0, tk.END)
+
+    if mode == "rect":
+        modevar.set(1)
+        set_mode_rect("99")
+    elif mode == "polygon":
+        modevar.set(2)
+        set_mode_polygon()
+    elif mode == "circle":
+        modevar.set(3)
+        set_mode_circle()
+    else:
+        modevar.set(1)
+        set_mode_rect("99")
+
+
+def reset_to_startup_state():
+    global polygon_points, point_ids, polygon_id, moving_point, dragging
+    global dragging_handle, center_x, center_y, radius, circle_id, oval_handles, radius_x, radius_y
     global image_with_metadata, cv_image, cv_image_2, image_tk, image_id, image_path, processed_image
     global conversion_factor, original_cv_image, any_dir, photo
     global start_x, start_y, end_x, end_y, line_start, line_end, temp_line1, temp_line2
@@ -2779,6 +2810,23 @@ def clear_selectarea():
     apply_threshold_flag.set(False)
     modevar.set(1)
     set_mode_rect("99")
+
+
+def confirm_reset_window():
+    global reset_confirm_open
+    if reset_confirm_open:
+        return
+
+    reset_confirm_open = True
+    try:
+        result = messagebox.askokcancel(
+            "画面リセット確認",
+            "現在の作業状態を初期化して、起動直後の状態に戻します。\nよろしいですか？"
+        )
+        if result:
+            reset_to_startup_state()
+    finally:
+        reset_confirm_open = False
 
 button_clear = ttk.Button(button_frame, text="選択範囲クリア", width=24, command=clear_selectarea)
 button_clear.grid(row=29, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
@@ -3324,7 +3372,7 @@ button_reset_window = ttk.Button(
     image=icon15,
     text='画面リセット',
     compound=tk.LEFT,
-    command=clear_selectarea,
+    command=confirm_reset_window,
     padding=[7, 0, 22, 0]
 )
 
