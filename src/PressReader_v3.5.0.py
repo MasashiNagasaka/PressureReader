@@ -3381,6 +3381,27 @@ button_reset_window.grid(row=43, column=0, columnspan=4, padx=(8, 0), pady=(0, 0
 button_reset_window.bind("<Enter>", on_enter_reset_window)
 button_reset_window.bind("<Leave>", on_leave_reset_window)
 
+# 「解析条件をコピー」は自然幅のまま維持し、
+# 「画面リセット」だけを実表示幅で合わせる。
+def sync_reset_button_width_to_metacopy():
+    root.update_idletasks()
+
+    metacopy_width = button_metacopy.winfo_reqwidth()
+    reset_width = button_reset_window.winfo_reqwidth()
+
+    left_pad = 7
+    top_pad = 0
+    bottom_pad = 0
+    base_right_pad = 22
+    extra_right_pad = max(0, metacopy_width - reset_width)
+
+    button_reset_window.configure(
+        padding=[left_pad, top_pad, base_right_pad + extra_right_pad, bottom_pad]
+    )
+
+
+root.after_idle(sync_reset_button_width_to_metacopy)
+
 
 # ボタンフレーム******************************************************************************************************************************************************************
 
