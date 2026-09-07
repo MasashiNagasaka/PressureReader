@@ -44,7 +44,10 @@ status: draft
 ### 3. UIイベント
 - `on_mouse_down/drag/up/right_click`
 - `set_mode_rect/polygon/circle`
-- `clear_selectarea`（v3.5.0で起動直後状態への復帰を担当）
+- `clear_selectarea`（選択範囲のクリアを担当）
+- `reset_to_startup_state`（v3.5.0で起動直後状態への復帰を担当）
+- `confirm_reset_window`（画面リセット前の確認ダイアログを担当）
+- `root.title`（v3.5.0で`PressureReader v{version}`へ変更）
 
 ### 4. 出力
 - `save_brightness_to_xlsx`

@@ -1386,7 +1386,7 @@ PR_icon = Image.open(BytesIO(image_data))
 
 photo_ico = ImageTk.PhotoImage(PR_icon)
 root.iconphoto(False, photo_ico)
-root.title(f"PressReader v{version}")
+root.title(f"PressureReader v{version}")
 root.minsize(700, 680)
 
 # メインフレーム（左：画像エリア, 右：ボタンエリア）

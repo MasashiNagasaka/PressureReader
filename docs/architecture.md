@@ -70,3 +70,4 @@ status: draft
 - Windowsデスクトップ前提の運用
 - 日本語ファイル名・画像パスを扱うため、読み込み方式に制約あり
 - Poppler配置がPDF変換の前提
+- タイトルバー文言は正式名称`PressureReader`で統一する

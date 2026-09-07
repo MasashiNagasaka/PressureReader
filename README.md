@@ -17,6 +17,7 @@ v3.5.0では「画面リセット」機能を追加予定です（Python実行�
 - 選択範囲のExcel出力（xlsx）
 - PDF=>PNG変換
 - 画面リセット（起動直後状態への復帰）
+- タイトルバー文言の正式名称化（`PressureReader v{version}`）
 
 ## スクリーンショット
 - 追加予定（`docs/screenshots/`）
