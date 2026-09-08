@@ -1626,16 +1626,16 @@ def set_conversion_factor():
         dialog = tk.Toplevel(root)
         dialog.title(title)
         w = 280  # 幅
-        h = 100  # 高さ
+        h = 140  # 高さ
         x = (screen_width - w) // 2
         y = (screen_height - h) // 2
         dialog.geometry(f"{w}x{h}+{x}+{y}")
         
         # アイコン設定
         dialog.iconphoto(False, photo_ico)
-        tk.Label(dialog, text=prompt).pack(pady=5)
+        tk.Label(dialog, text=prompt).pack(pady=(10, 6))
         entry = tk.Entry(dialog)
-        entry.pack(pady=2)
+        entry.pack(pady=4)
         
         result = None
         def submit():
@@ -1646,7 +1646,7 @@ def set_conversion_factor():
             except ValueError:
                 entry.delete(0, tk.END)
     
-        tk.Button(dialog, text="OK", command=submit, width=13).pack(pady=5)
+        tk.Button(dialog, text="OK", command=submit, width=13).pack(pady=(8, 10))
         
         dialog.grab_set()  # モーダルにする
         root.wait_window(dialog)  # ダイアログが閉じるまで待機
