@@ -11,8 +11,9 @@ from datetime import datetime
 import base64
 from io import BytesIO
 import sys
-import glob
+import atexit
 import shutil
+import uuid
 from scipy.interpolate import interp1d
 import math
 import pyautogui
@@ -67,6 +68,7 @@ first_polygon_point = None
 top_circle_px = None
 top_circle_py = None
 any_dir = None
+source_image_path = None
 px_count = 0
 
 # PDF⇒PNG変換品質(デフォルト：1200/300)
@@ -84,9 +86,43 @@ else:
     # スクリプトが実行されているディレクトリのパスを取得
     PR_dir = os.path.dirname(__file__)
 ima_path = os.path.join(PR_dir, "pr_images")
+tmp_dir = os.path.join(PR_dir, "_pressure_tmp")
 
-for png_file in glob.glob(os.path.join(PR_dir, "*.png")):
-    os.remove(png_file)
+
+def is_path_in_dir(path, base_dir):
+    abs_path = os.path.abspath(path)
+    abs_base_dir = os.path.abspath(base_dir)
+    try:
+        return os.path.commonpath([abs_path, abs_base_dir]) == abs_base_dir
+    except ValueError:
+        return False
+
+
+def cleanup_temp_pngs():
+    os.makedirs(tmp_dir, exist_ok=True)
+    for entry in os.scandir(tmp_dir):
+        if not entry.is_file():
+            continue
+        if not entry.name.lower().endswith(".png"):
+            continue
+        file_path = os.path.abspath(entry.path)
+        if not is_path_in_dir(file_path, tmp_dir):
+            print(f"[WARN] Skip cleanup outside tmp dir: {file_path}")
+            continue
+        try:
+            os.remove(file_path)
+        except OSError as e:
+            print(f"[WARN] Failed to remove temp PNG: {file_path} ({e})")
+    try:
+        expected_tmp_dir = os.path.abspath(os.path.join(PR_dir, "_pressure_tmp"))
+        if os.path.abspath(tmp_dir) == expected_tmp_dir and os.path.isdir(tmp_dir) and not os.listdir(tmp_dir):
+            os.rmdir(tmp_dir)
+    except OSError as e:
+        print(f"[WARN] Failed to remove tmp dir: {tmp_dir} ({e})")
+
+
+cleanup_temp_pngs()
+atexit.register(cleanup_temp_pngs)
 
 
 
@@ -1732,7 +1768,7 @@ button_iromihon.bind("<Leave>", on_leave_iromihon)
 def meta():
     global brightness_entry_15, brightness_entry_13, brightness_entry_11, brightness_entry_10, brightness_entry_09, brightness_entry_08, brightness_entry_07, \
     brightness_entry_06, brightness_entry_05, brightness_entry_04, brightness_entry_03, brightness_entry_02, brightness_entry_01, ondo_entry, shitsudo_entry, \
-    image_path, root, image_meta, selected_var, pixmm_entry, any_dir
+    image_path, root, image_meta, selected_var, pixmm_entry, any_dir, source_image_path
     # エントリから値を取得
     png_values = [
         selected_var.get(),
@@ -1766,8 +1802,8 @@ def meta():
         # メタデータを含めて画像を保存
         image_meta.save(image_path, "PNG", pnginfo=metadata)
         
-        original_image_path = os.path.join(any_dir, os.path.basename(image_path))
-        image_meta.save(original_image_path, "PNG", pnginfo=metadata)
+        if source_image_path:
+            image_meta.save(source_image_path, "PNG", pnginfo=metadata)
         
         
         # コメントを1秒間表示する
@@ -2753,7 +2789,7 @@ def reset_to_startup_state():
     global polygon_points, point_ids, polygon_id, moving_point, dragging
     global dragging_handle, center_x, center_y, radius, circle_id, oval_handles, radius_x, radius_y
     global image_with_metadata, cv_image, cv_image_2, image_tk, image_id, image_path, processed_image
-    global conversion_factor, original_cv_image, any_dir, photo
+    global conversion_factor, original_cv_image, any_dir, photo, source_image_path
     global start_x, start_y, end_x, end_y, line_start, line_end, temp_line1, temp_line2
     global white_Value, white_Press, white_flag, px_count
 
@@ -2772,6 +2808,7 @@ def reset_to_startup_state():
     photo = None
     conversion_factor = None
     any_dir = None
+    source_image_path = None
     white_Value = 250
     white_Press = 0
     white_flag = False
@@ -2929,7 +2966,7 @@ button_p2p.bind("<Leave>", on_leave_p2p)
 # 画像を読み込む処理
 def load_image():
     global image_with_metadata, cv_image, cv_image_2, image_tk, image_id, image_path, original_cv_image, selected_var, \
-        conversion_factor, atai_ave_entry, image_org_w, image_org_h, processed_image, any_dir, white_Value, white_Press, white_flag, white_Value2
+        conversion_factor, atai_ave_entry, image_org_w, image_org_h, processed_image, any_dir, white_Value, white_Press, white_flag, white_Value2, source_image_path
     
     # ファイル選択ダイアログを開き、PR_dir フォルダを初期ディレクトリに設定
     if any_dir:
@@ -2946,13 +2983,16 @@ def load_image():
     
     if file_path:
         # 選択したファイルをカレントディレクトリにコピー
+        os.makedirs(tmp_dir, exist_ok=True)
         image_name = os.path.basename(file_path)
-        image_path = os.path.join(PR_dir, image_name)
+        name_root, ext = os.path.splitext(image_name)
+        temp_file_name = f"{name_root}_{uuid.uuid4().hex}{ext}"
+        image_path = os.path.join(tmp_dir, temp_file_name)
         shutil.copy(file_path, image_path)
         any_dir = os.path.dirname(file_path)
+        source_image_path = file_path
         
         # 画像の読み込み
-        image_path = os.path.basename(file_path)
         #cv_image = cv2.imread(image_path) #26/03/27 日本語ファイル名対応------------------
         with open(image_path, "rb") as f:
             data = f.read()
@@ -3429,5 +3469,13 @@ atai_ave_entry.delete(0, tk.END)
 set_mode_rect("99")
 
 canvas.bind("<Configure>", resize_image)
+
+
+def on_app_close():
+    cleanup_temp_pngs()
+    root.destroy()
+
+
+root.protocol("WM_DELETE_WINDOW", on_app_close)
 
 root.mainloop()
