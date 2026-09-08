@@ -58,6 +58,7 @@ mm2fontsize = 12
 moving_point = None
 dragging = False
 reset_confirm_open = False
+suppress_sheet_type_reset = False
 
 # 多角形選択モード用
 polygon_points = []
@@ -1498,6 +1499,13 @@ style_4.configure("Custom4.TLabel", font=("Meiryo ui", 9, "bold"))
 
 
 def update_entries_and_buttons(*args):
+    global suppress_sheet_type_reset
+    if not suppress_sheet_type_reset:
+        for entry in all_entries:
+            entry.delete(0, tk.END)
+        if "atai_ave_entry" in globals():
+            atai_ave_entry.delete(0, tk.END)
+
     # 全てのエントリを非表示にする
     for entry, button in zip(all_entries, all_buttons):
         entry.grid_forget()
@@ -2966,7 +2974,7 @@ button_p2p.bind("<Leave>", on_leave_p2p)
 # 画像を読み込む処理
 def load_image():
     global image_with_metadata, cv_image, cv_image_2, image_tk, image_id, image_path, original_cv_image, selected_var, \
-        conversion_factor, atai_ave_entry, image_org_w, image_org_h, processed_image, any_dir, white_Value, white_Press, white_flag, white_Value2, source_image_path
+        conversion_factor, atai_ave_entry, image_org_w, image_org_h, processed_image, any_dir, white_Value, white_Press, white_flag, white_Value2, source_image_path, suppress_sheet_type_reset
     
     # ファイル選択ダイアログを開き、PR_dir フォルダを初期ディレクトリに設定
     if any_dir:
@@ -3096,36 +3104,40 @@ def load_image():
             if png_pixmm != "":
                 conversion_factor = float(png_pixmm)
             
-            if sheet_Type == "HHS":
-               selected_var.set("HHS")
-            elif sheet_Type == "HS 持続圧":
-               selected_var.set("HS 持続圧")
-            elif sheet_Type == "HS 瞬間圧":
-               selected_var.set("HS 瞬間圧")
-            elif sheet_Type == "MS 持続圧":
-               selected_var.set("MS 持続圧")
-            elif sheet_Type == "MS 瞬間圧":
-               selected_var.set("MS 瞬間圧")
-            elif sheet_Type == "LW 持続圧":
-               selected_var.set("LW 持続圧")
-            elif sheet_Type == "LW 瞬間圧":
-               selected_var.set("LW 瞬間圧")
-            elif sheet_Type == "LLW 持続圧":
-               selected_var.set("LLW 持続圧")
-            elif sheet_Type == "LLW 瞬間圧":
-               selected_var.set("LLW 瞬間圧")
-            elif sheet_Type == "3LW 持続圧":
-               selected_var.set("3LW 持続圧")
-            elif sheet_Type == "3LW 瞬間圧":
-               selected_var.set("3LW 瞬間圧")
-            elif sheet_Type == "4LW 持続圧":
-               selected_var.set("4LW 持続圧")
-            elif sheet_Type == "4LW 瞬間圧":
-               selected_var.set("4LW 瞬間圧")
-            elif sheet_Type == "5LW 持続圧":
-               selected_var.set("5LW 持続圧")
-            elif sheet_Type == "5LW 瞬間圧":
-               selected_var.set("5LW 瞬間圧")
+            suppress_sheet_type_reset = True
+            try:
+                if sheet_Type == "HHS":
+                   selected_var.set("HHS")
+                elif sheet_Type == "HS 持続圧":
+                   selected_var.set("HS 持続圧")
+                elif sheet_Type == "HS 瞬間圧":
+                   selected_var.set("HS 瞬間圧")
+                elif sheet_Type == "MS 持続圧":
+                   selected_var.set("MS 持続圧")
+                elif sheet_Type == "MS 瞬間圧":
+                   selected_var.set("MS 瞬間圧")
+                elif sheet_Type == "LW 持続圧":
+                   selected_var.set("LW 持続圧")
+                elif sheet_Type == "LW 瞬間圧":
+                   selected_var.set("LW 瞬間圧")
+                elif sheet_Type == "LLW 持続圧":
+                   selected_var.set("LLW 持続圧")
+                elif sheet_Type == "LLW 瞬間圧":
+                   selected_var.set("LLW 瞬間圧")
+                elif sheet_Type == "3LW 持続圧":
+                   selected_var.set("3LW 持続圧")
+                elif sheet_Type == "3LW 瞬間圧":
+                   selected_var.set("3LW 瞬間圧")
+                elif sheet_Type == "4LW 持続圧":
+                   selected_var.set("4LW 持続圧")
+                elif sheet_Type == "4LW 瞬間圧":
+                   selected_var.set("4LW 瞬間圧")
+                elif sheet_Type == "5LW 持続圧":
+                   selected_var.set("5LW 持続圧")
+                elif sheet_Type == "5LW 瞬間圧":
+                   selected_var.set("5LW 瞬間圧")
+            finally:
+                suppress_sheet_type_reset = False
         else:
             print("メタデータが見つかりません。")
         
