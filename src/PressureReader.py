@@ -58,6 +58,7 @@ mm2fontsize = 12
 moving_point = None
 dragging = False
 reset_confirm_open = False
+image_switch_confirm_open = False
 suppress_sheet_type_reset = False
 
 # 多角形選択モード用
@@ -2873,6 +2874,23 @@ def confirm_reset_window():
     finally:
         reset_confirm_open = False
 
+def has_displayed_image():
+    return bool(canvas.find_withtag("image"))
+
+def confirm_image_switch():
+    global image_switch_confirm_open
+    if image_switch_confirm_open:
+        return False
+
+    image_switch_confirm_open = True
+    try:
+        return messagebox.askokcancel(
+            "画像切替確認",
+            "現在表示中の画像を新しい画像に切り替えます。よろしいですか？"
+        )
+    finally:
+        image_switch_confirm_open = False
+
 button_clear = ttk.Button(button_frame, text="選択範囲クリア", width=24, command=clear_selectarea)
 button_clear.grid(row=29, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
 
@@ -2920,6 +2938,7 @@ def pdf_to_png():
     pdf_paths = select_pdf_files()
     global any_path, image_path_p2p, p2p_dpi
     if pdf_paths:
+        latest_image_path = None
         for pdf_path in pdf_paths:
             any_path = os.path.dirname(pdf_path)
             
@@ -2935,9 +2954,17 @@ def pdf_to_png():
                 if height > width: # 縦長の場合のみ回転処理を行う
                     rotated_image = image.rotate(90, expand=True)
                     rotated_image.save(image_path_p2p)
+                latest_image_path = image_path_p2p
                 completed_p2p()
             except Exception as e:
                 print(f"Error during convert_from_path for {pdf_path}: {e}")
+        if latest_image_path:
+            original_askopenfilename = filedialog.askopenfilename
+            try:
+                filedialog.askopenfilename = lambda *args, **kwargs: latest_image_path
+                load_image()
+            finally:
+                filedialog.askopenfilename = original_askopenfilename
     else:
         print("PDFファイルが選択されませんでした")
 
@@ -2989,6 +3016,9 @@ def load_image():
             title="PNGファイルを選択してください"
         )
     
+    if file_path and has_displayed_image() and not confirm_image_switch():
+        return
+
     if file_path:
         # 選択したファイルをカレントディレクトリにコピー
         os.makedirs(tmp_dir, exist_ok=True)
