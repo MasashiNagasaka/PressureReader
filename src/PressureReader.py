@@ -2151,10 +2151,35 @@ def calculate_brightness(start_x, start_y, end_x, end_y, value_key, polygon_poin
                 # 出力とエントリーへの記入処理
                 avg_list = [avg for _, avg in results]
                 insert_to_visible_entries(avg_list)
-                
-                white_Value = float(brightness_entry_01.get()) + white_Value2
-                white_flag = True
-                white_Press = c2p(white_Value)
+
+                # value_key=="14" 後は、部分設定でも通常モードへ戻す
+                if len(avg_list) > 0:
+                    root.after_idle(lambda: set_mode_rect("99"))
+
+                # 白基準値は entry_01 優先。空欄時は可視 entry の末尾有効値を使う
+                base_brightness = None
+                try:
+                    base_brightness = float(brightness_entry_01.get())
+                except (ValueError, TypeError):
+                    visible_entries = [entry for entry in all_entries if entry.winfo_ismapped()]
+                    visible_entries.sort(key=lambda e: int(e.grid_info()["row"]))
+                    for entry in reversed(visible_entries):
+                        candidate = entry.get().strip()
+                        if not candidate:
+                            continue
+                        try:
+                            base_brightness = float(candidate)
+                            break
+                        except (ValueError, TypeError):
+                            continue
+
+                if base_brightness is not None:
+                    white_Value = base_brightness + white_Value2
+                    white_flag = True
+                    try:
+                        white_Press = c2p(white_Value)
+                    except ValueError:
+                        pass
             value_key = "99"
     
     elif value_key == "99":
