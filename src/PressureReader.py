@@ -1614,7 +1614,16 @@ brightness_slots = [
 ]
 
 brightness_status_labels = {
-    key: tk.Label(button_frame, text="", fg="black", bg="#ffffff", font=("Meiryo ui", 10))
+    key: tk.Label(
+        button_frame,
+        text="",
+        fg="black",
+        bg=button_frame.cget("bg"),
+        bd=0,
+        relief="flat",
+        highlightthickness=0,
+        font=("Meiryo ui", 10),
+    )
     for key, _, _ in brightness_slots
 }
 
@@ -1776,8 +1785,10 @@ def set_conversion_factor():
 
 button_pixmm = ttk.Button(button_frame, text="ｽｹｰﾘﾝｸﾞ", width=7, command=set_conversion_factor)
 button_pixmm.grid(row=17, column=0, columnspan=2, padx=(10,0), pady=(5,0), sticky=tk.W)
-pixmm_entry = ttk.Entry(button_frame, width=15)
-pixmm_entry.grid(row=17, column=2, columnspan=2, padx=(5,10), pady=(5,0), sticky=tk.W)
+pixmm_entry = ttk.Entry(button_frame, width=10)
+pixmm_entry.grid(row=17, column=2, columnspan=1, padx=(5,2), pady=(5,0), sticky=tk.W)
+label_pixmm_unit = ttk.Label(button_frame, text="mm/px")
+label_pixmm_unit.grid(row=17, column=3, columnspan=1, padx=(0,10), pady=(5,0), sticky=tk.W)
 
 
 
