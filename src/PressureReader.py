@@ -1565,7 +1565,7 @@ option_menu = ttk.OptionMenu(button_frame, selected_var, options[6], *options, s
 option_menu.grid(row=4, column=0, columnspan=4, padx=(0,0), pady=(0,0), sticky=tk.W)
 
 label_ken = ttk.Label(button_frame, text="解析条件：", style="Custom.TLabel")
-label_ken.grid(row=6, column=0, columnspan=4, padx=(5,0), pady=(0,0), sticky=tk.W)
+label_ken.grid(row=3, column=0, columnspan=4, padx=(5,0), pady=(0,0), sticky=tk.W)
 
 # Create buttons to select region
 button_mihon_15 = ttk.Button(button_frame, text="1.5", width=7)
@@ -3405,8 +3405,11 @@ button_xl = ttk.Button(
     padding=[7, 0, 5, 0]
 )
 
+label_syuturyoku = ttk.Label(button_frame, text="出力：", style="Custom.TLabel")
+label_syuturyoku.grid(row=30, column=0, columnspan=4, padx=(5,0), pady=(8,0), sticky=tk.W)
+
 button_xl.image = icon9
-button_xl.grid(row=30, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
+button_xl.grid(row=31, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_xl.bind("<Enter>", on_enter_xl)
 button_xl.bind("<Leave>", on_leave_xl)
 
@@ -3486,8 +3489,11 @@ button_reset_window = ttk.Button(
     padding=[7, 0, 22, 0]
 )
 
+label_clear_input = ttk.Label(button_frame, text="入力内容クリア：", style="Custom.TLabel")
+label_clear_input.grid(row=32, column=0, columnspan=4, padx=(5,0), pady=(10,0), sticky=tk.W)
+
 button_reset_window.image = icon15
-button_reset_window.grid(row=31, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
+button_reset_window.grid(row=33, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_reset_window.bind("<Enter>", on_enter_reset_window)
 button_reset_window.bind("<Leave>", on_leave_reset_window)
 
