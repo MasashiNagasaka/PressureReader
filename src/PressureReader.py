@@ -1517,18 +1517,18 @@ def update_entries_and_buttons(*args):
     if selected_value == "HS 持続圧" or selected_value == "HS 瞬間圧" or selected_value == "3LW 持続圧" or selected_value == "3LW 瞬間圧" or selected_value == "HHS":
         for i, (entry,button) in enumerate(zip([brightness_entry_13, brightness_entry_11, brightness_entry_09, brightness_entry_07, brightness_entry_05, brightness_entry_03, brightness_entry_01], 
             [button_mihon_13, button_mihon_11, button_mihon_09, button_mihon_07, button_mihon_05, button_mihon_03, button_mihon_01])):
-            entry.grid(row=2+i, column=2, columnspan=2, padx=(5,20), pady=(0,0), sticky=tk.W)
-            button.grid(row=2+i, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.E)
+            entry.grid(row=7+i, column=2, columnspan=2, padx=(5,20), pady=(0,0), sticky=tk.W)
+            button.grid(row=7+i, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.E)
     elif selected_value == "MS 持続圧" or selected_value == "MS 瞬間圧" or selected_value == "LW 持続圧" or selected_value == "LW 瞬間圧" or selected_value == "LLW 持続圧" or selected_value == "LLW 瞬間圧":
         for i, (entry,button) in enumerate(zip([brightness_entry_15, brightness_entry_13, brightness_entry_11, brightness_entry_09, brightness_entry_07, brightness_entry_05, brightness_entry_03, brightness_entry_01], \
             [button_mihon_15, button_mihon_13, button_mihon_11, button_mihon_09, button_mihon_07, button_mihon_05, button_mihon_03, button_mihon_01])):
-            entry.grid(row=2+i, column=2, columnspan=2, padx=(5,20), pady=(0,0), sticky=tk.W)
-            button.grid(row=2+i, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.E)
+            entry.grid(row=7+i, column=2, columnspan=2, padx=(5,20), pady=(0,0), sticky=tk.W)
+            button.grid(row=7+i, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.E)
     elif selected_value == "4LW 持続圧" or selected_value == "4LW 瞬間圧" or selected_value == "5LW 持続圧" or selected_value == "5LW 瞬間圧":
         for i, (entry,button) in enumerate(zip([brightness_entry_10, brightness_entry_08, brightness_entry_06, brightness_entry_04, brightness_entry_02, brightness_entry_01], \
             [button_mihon_10, button_mihon_08, button_mihon_06, button_mihon_04, button_mihon_02, button_mihon_01])):
-            entry.grid(row=2+i, column=2, columnspan=2, padx=(5,20), pady=(0,0), sticky=tk.W)
-            button.grid(row=2+i, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.E)
+            entry.grid(row=7+i, column=2, columnspan=2, padx=(5,20), pady=(0,0), sticky=tk.W)
+            button.grid(row=7+i, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.E)
 
 def are_all_entries_valid(all_entries, ondo_entry, shitsudo_entry):
     targets = [entry for entry in all_entries if entry.winfo_ismapped()] + [ondo_entry, shitsudo_entry]
@@ -1562,10 +1562,10 @@ selected_var.trace("w", update_entries_and_buttons)  # 値変更時にupdate_ent
 # オプションメニューの作成
 options = ["5LW 持続圧","5LW 瞬間圧","4LW 持続圧","4LW 瞬間圧","3LW 持続圧","3LW 瞬間圧","LLW 持続圧","LLW 瞬間圧","LW 持続圧","LW 瞬間圧","MS 持続圧","MS 瞬間圧","HS 持続圧","HS 瞬間圧","HHS"]
 option_menu = ttk.OptionMenu(button_frame, selected_var, options[6], *options, style="Custom3.TMenubutton") # options[]の中の数字は選択肢の中からどれを最初に表示するかというやつ
-option_menu.grid(row=0, column=0, columnspan=4, padx=(0,0), pady=(0,0), sticky=tk.W)
+option_menu.grid(row=4, column=0, columnspan=4, padx=(0,0), pady=(0,0), sticky=tk.W)
 
 label_ken = ttk.Label(button_frame, text="解析条件：", style="Custom.TLabel")
-label_ken.grid(row=1, column=0, columnspan=4, padx=(5,0), pady=(0,0), sticky=tk.W)
+label_ken.grid(row=6, column=0, columnspan=4, padx=(5,0), pady=(0,0), sticky=tk.W)
 
 # Create buttons to select region
 button_mihon_15 = ttk.Button(button_frame, text="1.5", width=7)
@@ -1603,14 +1603,14 @@ all_buttons = [button_mihon_15, button_mihon_13, button_mihon_11, button_mihon_1
 update_entries_and_buttons()
 
 label_jouken1 = ttk.Label(button_frame, text="温度[℃]")
-label_jouken1.grid(row=10, column=0, columnspan=2, padx=(10,0), pady=(8,0), sticky=tk.W)
+label_jouken1.grid(row=15, column=0, columnspan=2, padx=(10,0), pady=(8,0), sticky=tk.W)
 label_jouken2 = ttk.Label(button_frame, text="湿度[%]")
-label_jouken2.grid(row=11, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.W)
+label_jouken2.grid(row=16, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.W)
 
 ondo_entry = ttk.Entry(button_frame, width=15)
-ondo_entry.grid(row=10, column=2, columnspan=2, padx=(5,10), pady=(8,0), sticky=tk.W)
+ondo_entry.grid(row=15, column=2, columnspan=2, padx=(5,10), pady=(8,0), sticky=tk.W)
 shitsudo_entry = ttk.Entry(button_frame, width=15)
-shitsudo_entry.grid(row=11, column=2, columnspan=2, padx=(5,10), pady=(0,0), sticky=tk.W)
+shitsudo_entry.grid(row=16, column=2, columnspan=2, padx=(5,10), pady=(0,0), sticky=tk.W)
 
 
 # スケーリングボタン*****************************************************************************************************
@@ -1722,9 +1722,9 @@ def set_conversion_factor():
     temp_line1 = None
 
 button_pixmm = ttk.Button(button_frame, text="ｽｹｰﾘﾝｸﾞ", width=7, command=set_conversion_factor)
-button_pixmm.grid(row=12, column=0, columnspan=2, padx=(10,0), pady=(5,0), sticky=tk.W)
+button_pixmm.grid(row=17, column=0, columnspan=2, padx=(10,0), pady=(5,0), sticky=tk.W)
 pixmm_entry = ttk.Entry(button_frame, width=15)
-pixmm_entry.grid(row=12, column=2, columnspan=2, padx=(5,10), pady=(5,0), sticky=tk.W)
+pixmm_entry.grid(row=17, column=2, columnspan=2, padx=(5,10), pady=(5,0), sticky=tk.W)
 
 
 
@@ -1766,7 +1766,7 @@ button_iromihon = ttk.Button(
 )
 
 button_iromihon.image = icon13
-button_iromihon.grid(row=14, column=0, columnspan=4, padx=(8, 0), pady=(5, 0), sticky=tk.W)
+button_iromihon.grid(row=5, column=0, columnspan=4, padx=(8, 0), pady=(5, 0), sticky=tk.W)
 button_iromihon.bind("<Enter>", on_enter_iromihon)
 button_iromihon.bind("<Leave>", on_leave_iromihon)
 
@@ -1857,13 +1857,13 @@ button_jouken.bind("<Leave>", on_leave_jouken)
 
 # 圧力表示*****************************************************************************************************************************
 label_ken = ttk.Label(button_frame, text="検出値：", style="Custom.TLabel")
-label_ken.grid(row=19, column=0, columnspan=4, padx=(5,0), pady=(20,0), sticky=tk.W)
+label_ken.grid(row=26, column=0, columnspan=4, padx=(5,0), pady=(20,0), sticky=tk.W)
 # label_ken.grid(row=19, column=0, columnspan=4, padx=(5,0), pady=(30,0), sticky=tk.W)
 
 atai_ave_entry = ttk.Entry(button_frame, width=8, style="Custom2.TLabel", font=custom_font)
-atai_ave_entry.grid(row=21, column=0, columnspan=3, padx=(11,0), pady=(0,0), sticky=tk.W)
+atai_ave_entry.grid(row=27, column=0, columnspan=3, padx=(11,0), pady=(0,0), sticky=tk.W)
 label_mpa = ttk.Label(button_frame, text="MPa", style="Custom4.TLabel")
-label_mpa.grid(row=21, column=3, padx=(3,0), pady=(5,0), sticky=tk.W)
+label_mpa.grid(row=27, column=3, padx=(3,0), pady=(5,0), sticky=tk.W)
 
 
 
@@ -1940,13 +1940,13 @@ def mark_lowest_brightness_points(start_x, start_y, end_x, end_y):
         marks.append(mark)
 
 label_slider = ttk.Label(button_frame, text="圧力最大点：", style="Custom.TLabel")
-label_slider.grid(row=22, column=0, columnspan=4, padx=(10,0), pady=(5,0), sticky=tk.W)
+label_slider.grid(row=28, column=0, columnspan=4, padx=(10,0), pady=(5,0), sticky=tk.W)
 slider_value = tk.StringVar()
 slider_value.set("0")
 label_20 = ttk.Label(button_frame, textvariable=slider_value)
-label_20.grid(row=23, column=0, padx=(10,0), pady=(5,0), sticky=tk.W)
+label_20.grid(row=29, column=0, padx=(10,0), pady=(5,0), sticky=tk.W)
 scale = ttk.Scale(button_frame, from_=0, to=100, orient="horizontal", length=105, command=update_label)
-scale.grid(row=23, column=1, columnspan=3, padx=(0,0), pady=(0,0), sticky=tk.W)
+scale.grid(row=29, column=1, columnspan=3, padx=(0,0), pady=(0,0), sticky=tk.W)
 
 
 
@@ -2043,7 +2043,7 @@ button_pressrange = ttk.Button(
 )
 
 button_pressrange.image = icon3  # 初期画像を保持
-button_pressrange.grid(row=24, column=0, columnspan=4, padx=(8, 0), pady=(10, 0), sticky=tk.W)
+button_pressrange.grid(row=25, column=0, columnspan=4, padx=(8, 0), pady=(10, 0), sticky=tk.W)
 
 
 
@@ -2777,15 +2777,15 @@ def update_circle():
 
 
 label_ken = ttk.Label(button_frame, text="範囲選択形状：", style="Custom.TLabel")
-label_ken.grid(row=25, column=0, columnspan=4, padx=(5,0), pady=(10,0), sticky=tk.W)
+label_ken.grid(row=20, column=0, columnspan=4, padx=(5,0), pady=(10,0), sticky=tk.W)
 
 modevar = tk.IntVar()
 button_Region_mode = ttk.Radiobutton(button_frame, text="四角形モード", variable=modevar, value=1, width=24, command=lambda: set_mode_rect("99"))
-button_Region_mode.grid(row=26, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
+button_Region_mode.grid(row=21, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
 button_Polygon_mode = ttk.Radiobutton(button_frame, text="多角形モード", variable=modevar, value=2, width=24, command=lambda: set_mode_polygon())
-button_Polygon_mode.grid(row=27, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
+button_Polygon_mode.grid(row=22, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
 button_Circle_mode = ttk.Radiobutton(button_frame, text="円形モード", variable=modevar, value=3, width=24, command=lambda: set_mode_circle())
-button_Circle_mode.grid(row=28, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
+button_Circle_mode.grid(row=23, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
 button_Region_mode.state(['selected'])
 
 
@@ -2917,7 +2917,7 @@ def confirm_image_switch():
         image_switch_confirm_open = False
 
 button_clear = ttk.Button(button_frame, text="選択範囲クリア", width=24, command=clear_selectarea)
-button_clear.grid(row=29, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
+button_clear.grid(row=24, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
 
 
 
@@ -3004,6 +3004,9 @@ def on_leave_p2p(event):
 icon1 = tk.PhotoImage(file=os.path.join(ima_path, "p2p_off.png"))  # 画像のリサイズ
 icon2 = tk.PhotoImage(file=os.path.join(ima_path, "p2p_on.png"))  # 画像のリサイズ
 
+label_junbi = ttk.Label(button_frame, text="画像準備：", style="Custom.TLabel")
+label_junbi.grid(row=0, column=0, columnspan=4, padx=(5,0), pady=(0,0), sticky=tk.W)
+
 # ボタン作成
 button_p2p = ttk.Button(
     button_frame,
@@ -3015,7 +3018,7 @@ button_p2p = ttk.Button(
 )
 
 button_p2p.image = icon1
-button_p2p.grid(row=39, column=0, columnspan=4, padx=(8, 0), pady=(10, 0), sticky=tk.W)
+button_p2p.grid(row=1, column=0, columnspan=4, padx=(8, 0), pady=(10, 0), sticky=tk.W)
 button_p2p.bind("<Enter>", on_enter_p2p)
 button_p2p.bind("<Leave>", on_leave_p2p)
 
@@ -3246,7 +3249,7 @@ button_hiraku = ttk.Button(
 )
 
 button_hiraku.image = icon5
-button_hiraku.grid(row=40, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
+button_hiraku.grid(row=2, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_hiraku.bind("<Enter>", on_enter_hiraku)
 button_hiraku.bind("<Leave>", on_leave_hiraku)
 
@@ -3403,7 +3406,7 @@ button_xl = ttk.Button(
 )
 
 button_xl.image = icon9
-button_xl.grid(row=41, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
+button_xl.grid(row=30, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_xl.bind("<Enter>", on_enter_xl)
 button_xl.bind("<Leave>", on_leave_xl)
 
@@ -3459,7 +3462,7 @@ button_metacopy = ttk.Button(
 )
 
 button_metacopy.image = icon11
-button_metacopy.grid(row=42, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
+button_metacopy.grid(row=19, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_metacopy.bind("<Enter>", on_enter_metacopy)
 button_metacopy.bind("<Leave>", on_leave_metacopy)
 
@@ -3484,7 +3487,7 @@ button_reset_window = ttk.Button(
 )
 
 button_reset_window.image = icon15
-button_reset_window.grid(row=43, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
+button_reset_window.grid(row=31, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_reset_window.bind("<Enter>", on_enter_reset_window)
 button_reset_window.bind("<Leave>", on_leave_reset_window)
 
