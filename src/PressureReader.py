@@ -2005,14 +2005,20 @@ def mark_lowest_brightness_points(start_x, start_y, end_x, end_y):
         mark = canvas.create_oval(x_scaled-5, y_scaled-5, x_scaled+5, y_scaled+5, outline='blue', fill='blue', tags="mark")
         marks.append(mark)
 
-label_slider = ttk.Label(button_frame, text="圧力最大点：", style="Custom.TLabel")
+label_slider = ttk.Label(
+    button_frame,
+    text="選択範囲の高圧検出箇所：",
+    style="Custom.TLabel"
+)
 label_slider.grid(row=28, column=0, columnspan=4, padx=(10,0), pady=(5,0), sticky=tk.W)
+label_slider_setting = ttk.Label(button_frame, text="表示数の設定", font=("Meiryo ui", 9))
+label_slider_setting.grid(row=29, column=0, columnspan=4, padx=(10,0), pady=(0,0), sticky=tk.W)
 slider_value = tk.StringVar()
 slider_value.set("0")
 label_20 = ttk.Label(button_frame, textvariable=slider_value)
-label_20.grid(row=29, column=0, padx=(10,0), pady=(5,0), sticky=tk.W)
+label_20.grid(row=30, column=0, padx=(10,0), pady=(5,0), sticky=tk.W)
 scale = ttk.Scale(button_frame, from_=0, to=100, orient="horizontal", length=105, command=update_label)
-scale.grid(row=29, column=1, columnspan=3, padx=(0,0), pady=(0,0), sticky=tk.W)
+scale.grid(row=30, column=1, columnspan=3, padx=(0,0), pady=(0,0), sticky=tk.W)
 
 
 
@@ -3471,10 +3477,10 @@ button_xl = ttk.Button(
 )
 
 label_syuturyoku = ttk.Label(button_frame, text="出力：", style="Custom.TLabel")
-label_syuturyoku.grid(row=30, column=0, columnspan=4, padx=(5,0), pady=(8,0), sticky=tk.W)
+label_syuturyoku.grid(row=31, column=0, columnspan=4, padx=(5,0), pady=(8,0), sticky=tk.W)
 
 button_xl.image = icon9
-button_xl.grid(row=31, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
+button_xl.grid(row=32, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_xl.bind("<Enter>", on_enter_xl)
 button_xl.bind("<Leave>", on_leave_xl)
 
@@ -3555,10 +3561,10 @@ button_reset_window = ttk.Button(
 )
 
 label_clear_input = ttk.Label(button_frame, text="入力内容クリア：", style="Custom.TLabel")
-label_clear_input.grid(row=32, column=0, columnspan=4, padx=(5,0), pady=(10,0), sticky=tk.W)
+label_clear_input.grid(row=33, column=0, columnspan=4, padx=(5,0), pady=(10,0), sticky=tk.W)
 
 button_reset_window.image = icon15
-button_reset_window.grid(row=33, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
+button_reset_window.grid(row=34, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_reset_window.bind("<Enter>", on_enter_reset_window)
 button_reset_window.bind("<Leave>", on_leave_reset_window)
 
