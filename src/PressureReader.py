@@ -1507,31 +1507,28 @@ def update_entries_and_buttons(*args):
         if "atai_ave_entry" in globals():
             atai_ave_entry.delete(0, tk.END)
 
-    # 全てのエントリを非表示にする
+    # 全てのエントリ/ボタン/状態表示を非表示にする
     for entry, button in zip(all_entries, all_buttons):
         entry.grid_forget()
         button.grid_forget()
+    for status_label in brightness_status_labels.values():
+        status_label.grid_forget()
 
-    # ラジオボタンの値に応じてエントリを表示
-    selected_value = selected_var.get()
-    if selected_value == "HS 持続圧" or selected_value == "HS 瞬間圧" or selected_value == "3LW 持続圧" or selected_value == "3LW 瞬間圧" or selected_value == "HHS":
-        for i, (entry,button) in enumerate(zip([brightness_entry_13, brightness_entry_11, brightness_entry_09, brightness_entry_07, brightness_entry_05, brightness_entry_03, brightness_entry_01], 
-            [button_mihon_13, button_mihon_11, button_mihon_09, button_mihon_07, button_mihon_05, button_mihon_03, button_mihon_01])):
-            entry.grid(row=7+i, column=2, columnspan=2, padx=(5,20), pady=(0,0), sticky=tk.W)
-            button.grid(row=7+i, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.E)
-    elif selected_value == "MS 持続圧" or selected_value == "MS 瞬間圧" or selected_value == "LW 持続圧" or selected_value == "LW 瞬間圧" or selected_value == "LLW 持続圧" or selected_value == "LLW 瞬間圧":
-        for i, (entry,button) in enumerate(zip([brightness_entry_15, brightness_entry_13, brightness_entry_11, brightness_entry_09, brightness_entry_07, brightness_entry_05, brightness_entry_03, brightness_entry_01], \
-            [button_mihon_15, button_mihon_13, button_mihon_11, button_mihon_09, button_mihon_07, button_mihon_05, button_mihon_03, button_mihon_01])):
-            entry.grid(row=7+i, column=2, columnspan=2, padx=(5,20), pady=(0,0), sticky=tk.W)
-            button.grid(row=7+i, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.E)
-    elif selected_value == "4LW 持続圧" or selected_value == "4LW 瞬間圧" or selected_value == "5LW 持続圧" or selected_value == "5LW 瞬間圧":
-        for i, (entry,button) in enumerate(zip([brightness_entry_10, brightness_entry_08, brightness_entry_06, brightness_entry_04, brightness_entry_02, brightness_entry_01], \
-            [button_mihon_10, button_mihon_08, button_mihon_06, button_mihon_04, button_mihon_02, button_mihon_01])):
-            entry.grid(row=7+i, column=2, columnspan=2, padx=(5,20), pady=(0,0), sticky=tk.W)
-            button.grid(row=7+i, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.E)
+    # 感圧紙種類に応じて、見本ボタン＋状態ラベルを表示
+    active_slots = get_active_brightness_slots()
+    for i, (value_key, entry, button) in enumerate(active_slots):
+        button.grid(row=7+i, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.E)
+        brightness_status_labels[value_key].grid(row=7+i, column=2, columnspan=2, padx=(5,20), pady=(0,0), sticky=tk.W)
+        if suppress_sheet_type_reset:
+            if entry.get().strip() == "":
+                set_brightness_status(value_key, "unset")
+            else:
+                set_brightness_status(value_key, "success")
+        else:
+            set_brightness_status(value_key, "unset")
 
 def are_all_entries_valid(all_entries, ondo_entry, shitsudo_entry):
-    targets = [entry for entry in all_entries if entry.winfo_ismapped()] + [ondo_entry, shitsudo_entry]
+    targets = get_active_brightness_entries() + [ondo_entry, shitsudo_entry]
     for entry in targets:
         value = entry.get().strip()
         if value == "":
@@ -1599,6 +1596,62 @@ brightness_entry_01 = ttk.Entry(button_frame, width=15)
 
 all_entries = [brightness_entry_15, brightness_entry_13, brightness_entry_11, brightness_entry_10, brightness_entry_09, brightness_entry_08, brightness_entry_07, brightness_entry_06, brightness_entry_05, brightness_entry_04, brightness_entry_03, brightness_entry_02, brightness_entry_01]
 all_buttons = [button_mihon_15, button_mihon_13, button_mihon_11, button_mihon_10, button_mihon_09, button_mihon_08, button_mihon_07, button_mihon_06, button_mihon_05, button_mihon_04, button_mihon_03, button_mihon_02, button_mihon_01]
+
+brightness_slots = [
+    ("15", brightness_entry_15, button_mihon_15),
+    ("13", brightness_entry_13, button_mihon_13),
+    ("11", brightness_entry_11, button_mihon_11),
+    ("10", brightness_entry_10, button_mihon_10),
+    ("09", brightness_entry_09, button_mihon_09),
+    ("08", brightness_entry_08, button_mihon_08),
+    ("07", brightness_entry_07, button_mihon_07),
+    ("06", brightness_entry_06, button_mihon_06),
+    ("05", brightness_entry_05, button_mihon_05),
+    ("04", brightness_entry_04, button_mihon_04),
+    ("03", brightness_entry_03, button_mihon_03),
+    ("02", brightness_entry_02, button_mihon_02),
+    ("01", brightness_entry_01, button_mihon_01),
+]
+
+brightness_status_labels = {
+    key: tk.Label(button_frame, text="", fg="black", bg="#ffffff", font=("Meiryo ui", 10))
+    for key, _, _ in brightness_slots
+}
+
+
+def get_active_brightness_keys(selected_value=None):
+    if selected_value is None:
+        selected_value = selected_var.get()
+    if selected_value in ["HS 持続圧", "HS 瞬間圧", "3LW 持続圧", "3LW 瞬間圧", "HHS"]:
+        return ["13", "11", "09", "07", "05", "03", "01"]
+    if selected_value in ["MS 持続圧", "MS 瞬間圧", "LW 持続圧", "LW 瞬間圧", "LLW 持続圧", "LLW 瞬間圧"]:
+        return ["15", "13", "11", "09", "07", "05", "03", "01"]
+    if selected_value in ["4LW 持続圧", "4LW 瞬間圧", "5LW 持続圧", "5LW 瞬間圧"]:
+        return ["10", "08", "06", "04", "02", "01"]
+    return []
+
+
+def get_active_brightness_slots(selected_value=None):
+    keys = set(get_active_brightness_keys(selected_value))
+    return [slot for slot in brightness_slots if slot[0] in keys]
+
+
+def get_active_brightness_entries(selected_value=None):
+    return [entry for _, entry, _ in get_active_brightness_slots(selected_value)]
+
+
+def set_brightness_status(value_key, status):
+    label = brightness_status_labels[value_key]
+    if status == "success":
+        label.config(text="色見本 設定完了", fg="black", font=("Meiryo ui", 10))
+    elif status == "failed":
+        label.config(text="読取失敗(やり直し)", fg="#d10000", font=("Meiryo ui", 10, "bold"))
+    else:
+        label.config(text="未設定", fg="#0057d9", font=("Meiryo ui", 10, "bold"))
+
+
+def format_brightness_key(value_key):
+    return f"{int(value_key) / 10:.1f}"
 
 update_entries_and_buttons()
 
@@ -1732,18 +1785,20 @@ pixmm_entry.grid(row=17, column=2, columnspan=2, padx=(5,10), pady=(5,0), sticky
 
 def insert_to_visible_entries(avg_list):
     global current_value
-    # 表示されているエントリーだけを抽出
-    visible_entries = [entry for entry in all_entries if entry.winfo_ismapped()]
-    # gridのrow順でソート
-    visible_entries.sort(key=lambda e: e.grid_info()["row"])
-    
-    # 明度値を順に挿入
-    for i, entry in enumerate(visible_entries):
+    active_slots = get_active_brightness_slots()
+
+    # 明度値を内部エントリーへ保持し、状態表示を更新
+    for i, (value_key, entry, _) in enumerate(active_slots):
         entry.delete(0, tk.END)
         if i < len(avg_list):
-            entry.insert(0, f"{avg_list[i]:.2f}")
+            avg_value = avg_list[i]
+            entry.insert(0, f"{avg_value:.2f}")
+            set_brightness_status(value_key, "success")
+            print(f"[DEBUG] swatch brightness {format_brightness_key(value_key)} = {avg_value:.2f}")
         else:
             entry.insert(0, "")
+            set_brightness_status(value_key, "failed")
+            print(f"[DEBUG] swatch brightness {format_brightness_key(value_key)} = None (failed)")
 
 #ボタン設置
 def on_enter_iromihon(event):
@@ -2161,9 +2216,8 @@ def calculate_brightness(start_x, start_y, end_x, end_y, value_key, polygon_poin
                 try:
                     base_brightness = float(brightness_entry_01.get())
                 except (ValueError, TypeError):
-                    visible_entries = [entry for entry in all_entries if entry.winfo_ismapped()]
-                    visible_entries.sort(key=lambda e: int(e.grid_info()["row"]))
-                    for entry in reversed(visible_entries):
+                    active_entries = get_active_brightness_entries()
+                    for entry in reversed(active_entries):
                         candidate = entry.get().strip()
                         if not candidate:
                             continue
