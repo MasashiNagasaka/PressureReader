@@ -1493,6 +1493,7 @@ style_1.configure("Custom.TLabel", font=("Meiryo ui", 10, "bold"))
 style_2 = ttk.Style()
 style_2.configure("Custom2.TLabel", foreground="#c942a5", background="#ffffff")
 custom_font=("Meiryo ui", 16, "bold")
+detected_value_font=("Meiryo ui", 13, "bold")
 style_3 = ttk.Style()
 style_3.configure("Custom3.TMenubutton", font=("Meiryo ui", 11, "bold"), foreground="#c942a5")
 style_4 = ttk.Style()
@@ -1504,8 +1505,7 @@ def update_entries_and_buttons(*args):
     if not suppress_sheet_type_reset:
         for entry in all_entries:
             entry.delete(0, tk.END)
-        if "atai_ave_entry" in globals():
-            atai_ave_entry.delete(0, tk.END)
+        clear_detected_value_entries()
 
     # 全てのエントリ/ボタン/状態表示を非表示にする
     for entry, button in zip(all_entries, all_buttons):
@@ -1555,6 +1555,57 @@ def are_all_entries_valid(all_entries, ondo_entry, shitsudo_entry):
 selected_var = tk.StringVar(value = "LLW 持続圧")
 # selected_var.set("4LW 持続圧")  # 初期選択
 selected_var.trace("w", update_entries_and_buttons)  # 値変更時にupdate_entriesを呼び出し
+
+
+def clear_detected_value_entries():
+    if "atai_ave_entry" in globals():
+        atai_ave_entry.delete(0, tk.END)
+    if "atai_max_entry" in globals():
+        atai_max_entry.delete(0, tk.END)
+    if "atai_min_entry" in globals():
+        atai_min_entry.delete(0, tk.END)
+
+
+def get_selected_sheet_pressure_limits():
+    selected = selected_var.get()
+    if selected in ("3LW 持続圧", "3LW 瞬間圧"):
+        return 0.2, 0.6
+    if selected in ("4LW 持続圧", "4LW 瞬間圧"):
+        return 0.05, 0.2
+    if selected in ("5LW 持続圧", "5LW 瞬間圧"):
+        return 0.006, 0.05
+    if selected in ("LLW 持続圧", "LLW 瞬間圧"):
+        return 0.5, 2.5
+    if selected in ("LW 持続圧", "LW 瞬間圧"):
+        return 2.5, 10.0
+    if selected in ("MS 持続圧", "MS 瞬間圧"):
+        return 10.0, 50.0
+    if selected in ("HS 持続圧", "HS 瞬間圧"):
+        return 50.0, 130.0
+    if selected == "HHS":
+        return 130.0, 300.0
+    return None, None
+
+
+def format_detected_pressure_value(press_value):
+    lower, upper = get_selected_sheet_pressure_limits()
+    if press_value is None or lower is None or upper is None:
+        return "測定範囲外"
+    try:
+        pressure = float(press_value)
+    except (TypeError, ValueError):
+        return "測定範囲外"
+
+    if lower <= pressure <= upper:
+        return f"{pressure:.6f}"
+    return "測定範囲外"
+
+
+def update_detected_value_entries(avg_press, max_press, min_press):
+    clear_detected_value_entries()
+    atai_ave_entry.insert(0, format_detected_pressure_value(avg_press))
+    atai_max_entry.insert(0, format_detected_pressure_value(max_press))
+    atai_min_entry.insert(0, format_detected_pressure_value(min_press))
 
 # オプションメニューの作成
 options = ["5LW 持続圧","5LW 瞬間圧","4LW 持続圧","4LW 瞬間圧","3LW 持続圧","3LW 瞬間圧","LLW 持続圧","LLW 瞬間圧","LW 持続圧","LW 瞬間圧","MS 持続圧","MS 瞬間圧","HS 持続圧","HS 瞬間圧","HHS"]
@@ -1922,14 +1973,65 @@ button_jouken.bind("<Leave>", on_leave_jouken)
 
 
 # 圧力表示*****************************************************************************************************************************
-label_ken = ttk.Label(button_frame, text="検出値：", style="Custom.TLabel")
+label_ken = ttk.Label(button_frame, text="選択範囲の検出値（MPa）：", style="Custom.TLabel")
 label_ken.grid(row=26, column=0, columnspan=4, padx=(5,0), pady=(20,0), sticky=tk.W)
-# label_ken.grid(row=19, column=0, columnspan=4, padx=(5,0), pady=(30,0), sticky=tk.W)
 
-atai_ave_entry = ttk.Entry(button_frame, width=8, style="Custom2.TLabel", font=custom_font)
-atai_ave_entry.grid(row=27, column=0, columnspan=3, padx=(11,0), pady=(0,0), sticky=tk.W)
-label_mpa = ttk.Label(button_frame, text="MPa", style="Custom4.TLabel")
-label_mpa.grid(row=27, column=3, padx=(3,0), pady=(5,0), sticky=tk.W)
+detected_value_frame = ttk.Frame(button_frame)
+detected_value_frame.grid(row=27, column=0, columnspan=4, padx=(11,12), pady=(0,0), sticky=tk.W)
+
+label_detected_avg = ttk.Label(detected_value_frame, text="検出値（平均）", style="Custom4.TLabel")
+label_detected_avg.grid(row=0, column=0, padx=(0,0), pady=(8,0), sticky=tk.W)
+atai_ave_entry = tk.Entry(
+    detected_value_frame,
+    width=8,
+    font=detected_value_font,
+    fg="#c942a5",
+    bg="#ffffff",
+    relief="flat",
+    bd=0,
+    highlightthickness=0,
+    highlightbackground="#ffffff",
+    highlightcolor="#ffffff"
+)
+atai_ave_entry.grid(row=0, column=1, padx=(3,0), pady=(8,0), sticky=tk.W)
+label_mpa_avg = ttk.Label(detected_value_frame, text="MPa", style="Custom4.TLabel")
+label_mpa_avg.grid(row=0, column=2, padx=(3,6), pady=(8,0), sticky=tk.W)
+
+label_detected_max = ttk.Label(detected_value_frame, text="検出値（最大）", style="Custom4.TLabel")
+label_detected_max.grid(row=1, column=0, padx=(0,0), pady=(2,0), sticky=tk.W)
+atai_max_entry = tk.Entry(
+    detected_value_frame,
+    width=8,
+    font=detected_value_font,
+    fg="#c942a5",
+    bg="#ffffff",
+    relief="flat",
+    bd=0,
+    highlightthickness=0,
+    highlightbackground="#ffffff",
+    highlightcolor="#ffffff"
+)
+atai_max_entry.grid(row=1, column=1, padx=(3,0), pady=(2,0), sticky=tk.W)
+label_mpa_max = ttk.Label(detected_value_frame, text="MPa", style="Custom4.TLabel")
+label_mpa_max.grid(row=1, column=2, padx=(3,6), pady=(2,0), sticky=tk.W)
+
+label_detected_min = ttk.Label(detected_value_frame, text="検出値（最小）", style="Custom4.TLabel")
+label_detected_min.grid(row=2, column=0, padx=(0,0), pady=(2,0), sticky=tk.W)
+atai_min_entry = tk.Entry(
+    detected_value_frame,
+    width=8,
+    font=detected_value_font,
+    fg="#c942a5",
+    bg="#ffffff",
+    relief="flat",
+    bd=0,
+    highlightthickness=0,
+    highlightbackground="#ffffff",
+    highlightcolor="#ffffff"
+)
+atai_min_entry.grid(row=2, column=1, padx=(3,0), pady=(2,0), sticky=tk.W)
+label_mpa_min = ttk.Label(detected_value_frame, text="MPa", style="Custom4.TLabel")
+label_mpa_min.grid(row=2, column=2, padx=(3,6), pady=(2,0), sticky=tk.W)
 
 
 
@@ -2007,7 +2109,7 @@ def mark_lowest_brightness_points(start_x, start_y, end_x, end_y):
 
 label_slider = ttk.Label(
     button_frame,
-    text="選択範囲の高圧検出箇所：",
+    text="高圧検出箇所",
     style="Custom.TLabel"
 )
 label_slider.grid(row=28, column=0, columnspan=4, padx=(10,0), pady=(5,0), sticky=tk.W)
@@ -2142,6 +2244,10 @@ def calculate_brightness(start_x, start_y, end_x, end_y, value_key, polygon_poin
     canvas_height = canvas.winfo_height()
     img_width, img_height = (int(image_with_metadata.size[0] * scale), int(image_with_metadata.size[1] * scale))
 
+    ave_press = None
+    max_press = None
+    min_press = None
+
     if mode == "rect":
         start_x2 = max(0, int(start_x) - int((canvas_width - img_width) / 2))
         start_y2 = max(0, int(start_y) - int((canvas_height - img_height) / 2))
@@ -2174,6 +2280,8 @@ def calculate_brightness(start_x, start_y, end_x, end_y, value_key, polygon_poin
             # 平均を計算
             if filtered_values.size > 0:
                 ave_press = np.mean(filtered_values)
+                max_press = np.max(filtered_values)
+                min_press = np.min(filtered_values)
             else:
                 ave_press = None  # 範囲内に値がない場合の処理
             
@@ -2254,55 +2362,7 @@ def calculate_brightness(start_x, start_y, end_x, end_y, value_key, polygon_poin
             value_key = "99"
     
     elif value_key == "99":
-        
-        if selected_var.get() == "3LW 持続圧" or selected_var.get() == "3LW 瞬間圧":
-            atai_ave_entry.delete(0, tk.END)
-            if ave_press <= 0.6 and ave_press >= 0.2:
-                atai_ave_entry.insert(0, f"{ave_press:.6f}")
-            else:
-                atai_ave_entry.insert(0, "測定範囲外")
-        elif selected_var.get() == "4LW 持続圧" or selected_var.get() == "4LW 瞬間圧":
-            atai_ave_entry.delete(0, tk.END)
-            if ave_press <= 0.2 and ave_press >= 0.05:
-                atai_ave_entry.insert(0, f"{ave_press:.6f}")
-            else:
-                atai_ave_entry.insert(0, "測定範囲外")
-        elif selected_var.get() == "5LW 持続圧" or selected_var.get() == "5LW 瞬間圧":
-            atai_ave_entry.delete(0, tk.END)
-            if ave_press <= 0.05 and ave_press >= 0.006:
-                atai_ave_entry.insert(0, f"{ave_press:.6f}")
-            else:
-                atai_ave_entry.insert(0, "測定範囲外")
-        elif selected_var.get() == "LLW 持続圧" or selected_var.get() == "LLW 瞬間圧":
-            atai_ave_entry.delete(0, tk.END)
-            if ave_press <= 2.5 and ave_press >= 0.5:
-                atai_ave_entry.insert(0, f"{ave_press:.6f}")
-            else:
-                atai_ave_entry.insert(0, "測定範囲外")
-        elif selected_var.get() == "LW 持続圧" or selected_var.get() == "LW 瞬間圧":
-            atai_ave_entry.delete(0, tk.END)
-            if ave_press <= 10.0 and ave_press >= 2.5:
-                atai_ave_entry.insert(0, f"{ave_press:.6f}")
-            else:
-                atai_ave_entry.insert(0, "測定範囲外")
-        elif selected_var.get() == "MS 持続圧" or selected_var.get() == "MS 瞬間圧":
-            atai_ave_entry.delete(0, tk.END)
-            if ave_press <= 50.0 and ave_press >= 10.0:
-                atai_ave_entry.insert(0, f"{ave_press:.6f}")
-            else:
-                atai_ave_entry.insert(0, "測定範囲外")
-        elif selected_var.get() == "HS 持続圧" or selected_var.get() == "HS 瞬間圧":
-            atai_ave_entry.delete(0, tk.END)
-            if ave_press <= 130.0 and ave_press >= 50.0:
-                atai_ave_entry.insert(0, f"{ave_press:.6f}")
-            else:
-                atai_ave_entry.insert(0, "測定範囲外")
-        elif selected_var.get() == "HHS":
-            atai_ave_entry.delete(0, tk.END)
-            if ave_press <= 300.0 and ave_press >= 130.0:
-                atai_ave_entry.insert(0, f"{ave_press:.6f}")
-            else:
-                atai_ave_entry.insert(0, "測定範囲外")
+        update_detected_value_entries(ave_press, max_press, min_press)
                 
 
 
@@ -2339,6 +2399,10 @@ def calculate_brightness2(polygon_points):
     # マスク範囲内の white_Value 以下のピクセルを取得
     valid_pixels = polygon[(mask > 0) & (polygon <= white_Value)]
 
+    ave_press = None
+    max_press = None
+    min_press = None
+
     if valid_pixels.size > 0:
         # c2pを適用した値をNumPy配列として作成
         c2p_values = np.array([c2p(p) for p in valid_pixels])
@@ -2350,6 +2414,8 @@ def calculate_brightness2(polygon_points):
         # 平均を計算
         if filtered_values.size > 0:
             ave_press = np.mean(filtered_values)
+            max_press = np.max(filtered_values)
+            min_press = np.min(filtered_values)
         else:
             ave_press = None  # 範囲内に値がない場合の処理
         
@@ -2372,57 +2438,12 @@ def calculate_brightness2(polygon_points):
     else:
         # 有効なピクセルがない場合のデフォルト値
         ave_press = c2p(0)
+        max_press = ave_press
+        min_press = ave_press
     
     
     
-    if selected_var.get() == "3LW 持続圧" or selected_var.get() == "3LW 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 0.6 and ave_press >= 0.2:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "4LW 持続圧" or selected_var.get() == "4LW 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 0.2 and ave_press >= 0.05:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "5LW 持続圧" or selected_var.get() == "5LW 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 0.05 and ave_press >= 0.006:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "LLW 持続圧" or selected_var.get() == "LLW 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 2.5 and ave_press >= 0.5:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "LW 持続圧" or selected_var.get() == "LW 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 10.0 and ave_press >= 2.5:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "MS 持続圧" or selected_var.get() == "MS 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 50.0 and ave_press >= 10.0:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "HS 持続圧" or selected_var.get() == "HS 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 130.0 and ave_press >= 50.0:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "HHS":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 300.0 and ave_press >= 130.0:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
+    update_detected_value_entries(ave_press, max_press, min_press)
 
 
 # 円形モードの処理
@@ -2465,6 +2486,10 @@ def calculate_brightness3():
     # マスク内の有効なピクセルを抽出
     valid_pixels = ellipse_pixels[(mask > 0) & (ellipse_pixels <= white_Value)]
     
+    ave_press = None
+    max_press = None
+    min_press = None
+
     if valid_pixels.size > 0:
         # c2pを適用した値をNumPy配列として作成
         c2p_values = np.array([c2p(p) for p in valid_pixels])
@@ -2477,6 +2502,8 @@ def calculate_brightness3():
         # 平均を計算
         if filtered_values.size > 0:
             ave_press = np.mean(filtered_values)
+            max_press = np.max(filtered_values)
+            min_press = np.min(filtered_values)
         else:
             ave_press = None  # 範囲内に値がない場合の処理
         
@@ -2492,6 +2519,8 @@ def calculate_brightness3():
     else:
         # 有効なピクセルがない場合のデフォルト値
         ave_press = c2p(0)
+        max_press = ave_press
+        min_press = ave_press
     
     
     # テキスト表示の更新
@@ -2508,54 +2537,7 @@ def calculate_brightness3():
     
     
     
-    if selected_var.get() == "3LW 持続圧" or selected_var.get() == "3LW 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 0.6 and ave_press >= 0.2:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "4LW 持続圧" or selected_var.get() == "4LW 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 0.2 and ave_press >= 0.05:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "5LW 持続圧" or selected_var.get() == "5LW 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 0.05 and ave_press >= 0.006:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "LLW 持続圧" or selected_var.get() == "LLW 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 2.5 and ave_press >= 0.5:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "LW 持続圧" or selected_var.get() == "LW 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 10.0 and ave_press >= 2.5:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "MS 持続圧" or selected_var.get() == "MS 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 50.0 and ave_press >= 10.0:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "HS 持続圧" or selected_var.get() == "HS 瞬間圧":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 130.0 and ave_press >= 50.0:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
-    elif selected_var.get() == "HHS":
-        atai_ave_entry.delete(0, tk.END)
-        if ave_press <= 300.0 and ave_press >= 130.0:
-            atai_ave_entry.insert(0, f"{ave_press:.6f}")
-        else:
-            atai_ave_entry.insert(0, "測定範囲外")
+    update_detected_value_entries(ave_press, max_press, min_press)
 
 
 # 範囲選択モード切替
@@ -2874,7 +2856,7 @@ def clear_selectarea():
     circle_id = None
     oval_handles = [None] * 4
     radius_x = radius_y = 0
-    atai_ave_entry.delete(0, tk.END)
+    clear_detected_value_entries()
 
     if mode == "rect":
         modevar.set(1)
@@ -2943,7 +2925,7 @@ def reset_to_startup_state():
     ondo_entry.delete(0, tk.END)
     shitsudo_entry.delete(0, tk.END)
     pixmm_entry.delete(0, tk.END)
-    atai_ave_entry.delete(0, tk.END)
+    clear_detected_value_entries()
 
     # 起動直後のUI状態へ復帰
     selected_var.set("LLW 持続圧")
@@ -3178,7 +3160,7 @@ def load_image():
         ondo_entry.delete(0, 'end')
         shitsudo_entry.delete(0, 'end')
         pixmm_entry.delete(0, 'end')
-        atai_ave_entry.delete(0, 'end')
+        clear_detected_value_entries()
         
         
         # メタデータを読み取る
@@ -3612,7 +3594,7 @@ radius_x = radius_y = 0
 
 mode = "rect"
 rect_selected = True
-atai_ave_entry.delete(0, tk.END)
+clear_detected_value_entries()
 set_mode_rect("99")
 
 canvas.bind("<Configure>", resize_image)
