@@ -237,14 +237,14 @@ def show_startup_info_window():
                 font=("Meiryo ui", 14, "bold") if is_highlight else ("Meiryo ui", 14),
             ).pack(side=tk.LEFT)
 
-    def add_aligned_item(parent, left_segments, right_segments):
-        row_frame = tk.Frame(parent, bg="#f4f7fb")
-        row_frame.pack(anchor="w", fill=tk.X, pady=(0, 6))
-        row_frame.grid_columnconfigure(1, minsize=250)
-        row_frame.grid_columnconfigure(3, weight=1)
+    table_frame = tk.Frame(body_frame, bg="#f4f7fb")
+    table_frame.pack(anchor="w", fill=tk.X)
+    table_frame.grid_columnconfigure(1, minsize=250)
+    table_frame.grid_columnconfigure(3, weight=1)
 
+    def add_aligned_item(row_index, left_segments, right_segments):
         bullet_label = tk.Label(
-            row_frame,
+            table_frame,
             text="・",
             justify=tk.LEFT,
             anchor="w",
@@ -252,14 +252,14 @@ def show_startup_info_window():
             fg=body_color,
             font=("Meiryo ui", 14),
         )
-        bullet_label.grid(row=0, column=0, sticky="nw")
+        bullet_label.grid(row=row_index, column=0, sticky="nw", pady=(0, 6))
 
-        left_container = tk.Frame(row_frame, bg="#f4f7fb")
-        left_container.grid(row=0, column=1, sticky="nw")
+        left_container = tk.Frame(table_frame, bg="#f4f7fb")
+        left_container.grid(row=row_index, column=1, sticky="nw", pady=(0, 6))
         add_segmented_labels(left_container, left_segments)
 
         sep_label = tk.Label(
-            row_frame,
+            table_frame,
             text="…",
             justify=tk.LEFT,
             anchor="w",
@@ -268,24 +268,24 @@ def show_startup_info_window():
             font=("Meiryo ui", 14),
             padx=2,
         )
-        sep_label.grid(row=0, column=2, sticky="nw")
+        sep_label.grid(row=row_index, column=2, sticky="nw", pady=(0, 6))
 
-        right_container = tk.Frame(row_frame, bg="#f4f7fb")
-        right_container.grid(row=0, column=3, sticky="nw")
+        right_container = tk.Frame(table_frame, bg="#f4f7fb")
+        right_container.grid(row=row_index, column=3, sticky="nw", pady=(0, 6))
         add_segmented_labels(right_container, right_segments)
 
     add_aligned_item(
-        body_frame,
+        0,
         [("画像PDF", True)],
         [("感圧紙", True), ("  および  ", False), ("標準色見本", True)],
     )
     add_aligned_item(
-        body_frame,
+        1,
         [("温度[℃]", True), ("、", False), ("湿度[%]", True)],
-        [("圧力計測時の設定値", False)],
+        [("圧力計測時の値", True)],
     )
     add_aligned_item(
-        body_frame,
+        2,
         [("スケール", True)],
         [("感圧紙の", False), ("寸法[mm]", True)],
     )

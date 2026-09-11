@@ -1,7 +1,7 @@
-# PressureReader
+﻿# PressureReader
 
 ![Python](https://img.shields.io/badge/Python-3.x-3776AB?logo=python&logoColor=white)
-![Tkinter](https://img.shields.io/badge/GUI-Tkinter-0B3D91)
+![GUI](https://img.shields.io/badge/GUI-Tkinter-0B3D91)
 ![OpenCV](https://img.shields.io/badge/OpenCV-Image%20Processing-5C3EE8?logo=opencv&logoColor=white)
 ![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white)
 ![SciPy](https://img.shields.io/badge/SciPy-8CAAE6?logo=scipy&logoColor=white)
@@ -9,85 +9,90 @@
 ![License](https://img.shields.io/badge/License-Private-lightgrey)
 
 ## 概要
-PressureReader は、感圧紙画像（PNG）を読み込み、明度値から圧力値を算出して可視化・出力する Windows 向けデスクトップアプリです。  
-現行コードは `src/PressureReader.py`（`version = "3.5.0"`）です。
+PressureReader は、感圧紙画像（PNG / PDF）を読み込み、解析条件（色見本・温湿度・スケーリング）を設定して圧力値を可視化・Excel出力する Windows 向けデスクトップアプリです。
 
-## スクリーンショット
-`docs/screenshots/` は現在未作成です。  
-スクリーンショットを追加する場合は、このディレクトリに保存してください。
+現在のメイン実行ファイルは `src/PressureReader.py` で、バージョンは `3.5.0` です。
 
 ## 主な機能
 - PNG を開く
-- PDF を PNG に変換（変換後 PNG を自動で開く）
-- 解析条件（明度・温度・湿度・スケーリング）設定
-- 標準色見本処理
-- 選択モード（四角形 / 多角形 / 円）
-- 平均圧力・面積表示
-- 選択範囲 Excel 出力（`.xlsx`）
-- 解析条件を PNG メタデータへ保存 / 読み込み
-- 画面リセット（起動直後状態へ復帰、確認ダイアログ付き）
-- 一時 PNG の安全クリーンアップ（専用 tmp フォルダ）
+- PDF⇒PNG変換（変換後のPNGを自動表示）
+- 標準色見本処理（明度設定）
+- 温度[℃] / 湿度[%] 入力
+- スケーリング設定（mm/px）
+- 選択範囲の可視化（四角形 / 円 / 多角形）
+- 選択範囲Excel出力（.xlsx）
+- PNGへの解析条件保存 / 解析条件コピー
+- 画面リセット
 
-## 技術スタック
-- 言語: Python
-- GUI: Tkinter / ttk
-- 画像処理: Pillow, OpenCV, NumPy
-- 補間計算: SciPy
-- Excel 出力: openpyxl
-- PDF 変換: pdf2image + poppler
+## 実行環境
+- OS: Windows
+- Python 実行パス（本プロジェクト運用）: `C:\nagasaka\python\testPressR\Scripts\python.exe`
+- リポジトリ: `MasashiNagasaka/PressureReader`
 
 ## セットアップ
-### 前提
-- Windows
-- Python 実行環境: `C:\nagasaka\python\testPressR\Scripts\python.exe`
-- Git リポジトリ: `https://github.com/MasashiNagasaka/PressureReader.git`
-
-### クローン
 ```powershell
 git clone https://github.com/MasashiNagasaka/PressureReader.git
 cd PressureReader\Project01
 ```
 
-## 実行方法
+必要に応じて仮想環境を有効化:
+```powershell
+C:\nagasaka\python\testPressR\Scripts\activate.bat
+```
+
+## 起動方法
 ```powershell
 C:\nagasaka\python\testPressR\Scripts\python.exe src\PressureReader.py
 ```
 
-## 開発ワークフロー
-- 仕様化: `/plan-kaizen`
-- 実装: `/add-feature`（または `/add-feature-ui`）
+## 入力データ（事前準備）
+- 画像PDF: 感圧紙（圧力計測後）および標準色見本
+- 温度[℃]、湿度[%]: 圧力計測時の値
+- スケール: 感圧紙の寸法[mm]
+
+## プロジェクトワークフロー
+- 仕様策定: `/plan-kaizen`
+- 実装: `/add-feature`（必要に応じて `/add-feature-ui`）
 - 初回ドキュメント整備: `/setup-project`
 - 検証: `/verify`
+- README更新: `/generate-readme`
 
-## ドキュメント
-- PRD: `docs/product-requirements.md`
-- 機能設計: `docs/functional-design.md`
-- アーキテクチャ: `docs/architecture.md`
-- 用語集: `docs/glossary.md`
-- ADR: `docs/adr/`
-- 仕様アイデア: `docs/ideas/`
-- 変更ステアリング: `.steering/`
+## ディレクトリ概要
+- `src/` : アプリ本体
+- `docs/` : 長期ドキュメント（PRD/設計/アーキ）
+- `docs/ideas/` : 仕様メモ・アイデア
+- `.steering/` : 変更単位の実行仕様
+- `.claude/` : コマンド・ルール・ガイドライン
+
+## スクリーンショット
+`docs/screenshots/` は現在未整備です。追加時に本READMEへ反映します。
 
 ## 最近の変更履歴
 | 日付 | 変更内容 |
 |------|---------|
-| 2026-09-09 | 標準色見本処理→通常選択モードへの不具合修正 |
-| 2026-09-09 | PDF→PNGファイル変換後、変換後の画像を自動で開く |
-| 2026-09-09 | スケーリングボタンの押下時のウィンドウサイズ変更 |
-| 2026-09-09 | 感圧紙種類を手動変更したときのみ、明度設定をリセット |
-| 2026-09-08 | png一時ファイルはtmpフォルダで管理 |
+| 2026-09-11 | リストボックスのデフォルト状態「感圧紙を選択」を追加 |
+| 2026-09-11 | ガイダンスメッセージを調整 |
+| 2026-09-11 | スケーリング未設定時のメッセージを変更 |
+| 2026-09-11 | 各エントリの表示位置を調整 |
+| 2026-09-11 | 検出値（平均/最大/最小）表示欄の調整 |
+| 2026-09-11 | 圧力最大点ラベルを高圧検出箇所に変更 |
+| 2026-09-10 | スケーリングの単位表示を追加 |
+| 2026-09-10 | 明度の数値を非表示化 |
+| 2026-09-09 | UI配置見直し（上から下フロー） |
+| 2026-09-09 | PDF→PNG変換後に画像を自動で開く |
 
 <details>
-<summary>過去の変更履歴</summary>
+<summary>過去の主な履歴</summary>
 
 | 日付 | 変更内容 |
 |------|---------|
-| 2026-09-07 | 画像をPressureReaderに変更 |
-| 2026-09-07 | src フォルダ内のファイル名を変更 PressureReader |
-| 2026-09-07 | ホワイトリストOK、タイトルをPressureReaderに変更 |
+| 2026-09-08 | PNG一時ファイルをtmpフォルダ管理へ変更 |
+| 2026-09-07 | アプリ名を PressureReader に統一 |
+| 2026-09-07 | `src` 配下ファイル名整理 |
+| 2026-09-07 | 画面リセットボタン追加 |
 | 2026-09-07 | 画面リセットボタン、ボタンサイズ調整 |
-| 2026-09-07 | 画面リセットボタン実装まで |
 
 </details>
 
-<!-- readme-generated: 2026-09-09T14:54:05 -->
+<!-- readme-generated: 2026-09-11T14:54:20 -->
+
