@@ -3709,18 +3709,19 @@ button_xl.bind("<Leave>", on_leave_xl)
 def metaコピ():
     src_path = filedialog.askopenfilename(title="解析条件のコピー元PNGを選択してください", filetypes=[("PNG files", "*.png")])
     if not src_path:
-        exit()
+        return
     
     # ② 画像を開いてメタデータを取得
     with Image.open(src_path) as src_img:
         if not isinstance(src_img.info, dict):
-            exit()
+            messagebox.showwarning("エラー", "コピー元PNGのメタデータを読み取れませんでした。")
+            return
         metadata = src_img.info.copy()  # メタデータをコピー
     
     # ③ 複数の画像を選択
     target_paths = filedialog.askopenfilenames(title="解析条件のコピー先PNGを選択してください（複数可）", filetypes=[("PNG files", "*.png")])
     if not target_paths:
-        exit()
+        return
     
     # ④ 各画像に対してメタデータを上書き保存
     for path in target_paths:
