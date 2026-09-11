@@ -1615,6 +1615,27 @@ style_3.configure("Custom3.TMenubutton", font=("Meiryo ui", 11, "bold"), foregro
 style_4 = ttk.Style()
 style_4.configure("Custom4.TLabel", font=("Meiryo ui", 9, "bold"))
 
+SHEET_TYPE_PLACEHOLDER_DISPLAY = "感圧紙を選択"
+SHEET_TYPE_PLACEHOLDER_VALUE = "感圧紙を選択"
+
+
+def is_sheet_type_unselected(value=None):
+    if value is None:
+        try:
+            value = selected_var.get()
+        except Exception:
+            return True
+    return value in ("", SHEET_TYPE_PLACEHOLDER_DISPLAY, SHEET_TYPE_PLACEHOLDER_VALUE)
+
+
+def set_sheet_type_unselected():
+    global suppress_sheet_type_reset
+    suppress_sheet_type_reset = True
+    try:
+        selected_var.set(SHEET_TYPE_PLACEHOLDER_VALUE)
+    finally:
+        suppress_sheet_type_reset = False
+
 
 def update_entries_and_buttons(*args):
     global suppress_sheet_type_reset
@@ -1629,6 +1650,34 @@ def update_entries_and_buttons(*args):
         button.grid_forget()
     for status_label in brightness_status_labels.values():
         status_label.grid_forget()
+
+    is_unselected = is_sheet_type_unselected()
+    detail_widget_names = [
+        "button_iromihon",
+        "label_jouken1",
+        "label_jouken2",
+        "ondo_entry",
+        "shitsudo_entry",
+        "button_pixmm",
+        "pixmm_unit_frame",
+        "button_jouken",
+        "button_metacopy",
+    ]
+    for widget_name in detail_widget_names:
+        widget = globals().get(widget_name)
+        if widget is None:
+            continue
+        try:
+            if is_unselected:
+                if widget.winfo_manager() == "grid":
+                    widget.grid_remove()
+            else:
+                widget.grid()
+        except tk.TclError:
+            pass
+
+    if is_unselected:
+        return
 
     # 感圧紙種類に応じて、見本ボタン＋状態ラベルを表示
     active_slots = get_active_brightness_slots()
@@ -1655,6 +1704,9 @@ def is_valid_numeric_entry(entry):
 
 
 def get_analysis_condition_missing_message():
+    if is_sheet_type_unselected():
+        return " 感圧紙の種類をリストから選択してください "
+
     # 明度は最優先で案内する（標準色見本処理が必要なため）
     for entry in get_active_brightness_entries():
         if not is_valid_numeric_entry(entry):
@@ -1688,7 +1740,7 @@ def are_all_entries_valid(all_entries, ondo_entry, shitsudo_entry):
 # ボタンフレーム******************************************************************************************************************************************************************
 
 # プレスケール選択欄***********************************************************************************************************************
-selected_var = tk.StringVar(value = "LLW 持続圧")
+selected_var = tk.StringVar(value=SHEET_TYPE_PLACEHOLDER_VALUE)
 # selected_var.set("4LW 持続圧")  # 初期選択
 selected_var.trace("w", update_entries_and_buttons)  # 値変更時にupdate_entriesを呼び出し
 
@@ -1744,8 +1796,8 @@ def update_detected_value_entries(avg_press, max_press, min_press):
     atai_min_entry.insert(0, format_detected_pressure_value(min_press))
 
 # オプションメニューの作成
-options = ["5LW 持続圧","5LW 瞬間圧","4LW 持続圧","4LW 瞬間圧","3LW 持続圧","3LW 瞬間圧","LLW 持続圧","LLW 瞬間圧","LW 持続圧","LW 瞬間圧","MS 持続圧","MS 瞬間圧","HS 持続圧","HS 瞬間圧","HHS"]
-option_menu = ttk.OptionMenu(button_frame, selected_var, options[6], *options, style="Custom3.TMenubutton") # options[]の中の数字は選択肢の中からどれを最初に表示するかというやつ
+options = ["5LW 持続圧","5LW 瞬間圧","4LW 持続圧","4LW 瞬間圧","3LW 持続圧","3LW 瞬間圧","LLW 持続圧","LLW 瞬間圧","LW 持続圧","LW 瞬間圧","MS 持続圧","MS 瞬間圧","HS 持続圧","HS 瞬間圧","HHS", SHEET_TYPE_PLACEHOLDER_VALUE]
+option_menu = ttk.OptionMenu(button_frame, selected_var, SHEET_TYPE_PLACEHOLDER_DISPLAY, *options, style="Custom3.TMenubutton")
 option_menu.grid(row=4, column=0, columnspan=4, padx=(0,0), pady=(0,0), sticky=tk.W)
 
 label_ken = ttk.Label(button_frame, text="解析条件：", style="Custom.TLabel")
@@ -3069,7 +3121,7 @@ def reset_to_startup_state():
     clear_detected_value_entries()
 
     # 起動直後のUI状態へ復帰
-    selected_var.set("LLW 持続圧")
+    set_sheet_type_unselected()
     button_pressrange.config(image=icon3, text='測定範囲可視化：OFF')
     button_pressrange.image = icon3
     apply_threshold_flag.set(False)
@@ -3356,42 +3408,61 @@ def load_image(show_sheettype_guidance=False):
             if png_pixmm != "":
                 conversion_factor = float(png_pixmm)
             
+            sheet_type_applied = False
             suppress_sheet_type_reset = True
             try:
                 if sheet_Type == "HHS":
                    selected_var.set("HHS")
+                   sheet_type_applied = True
                 elif sheet_Type == "HS 持続圧":
                    selected_var.set("HS 持続圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "HS 瞬間圧":
                    selected_var.set("HS 瞬間圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "MS 持続圧":
                    selected_var.set("MS 持続圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "MS 瞬間圧":
                    selected_var.set("MS 瞬間圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "LW 持続圧":
                    selected_var.set("LW 持続圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "LW 瞬間圧":
                    selected_var.set("LW 瞬間圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "LLW 持続圧":
                    selected_var.set("LLW 持続圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "LLW 瞬間圧":
                    selected_var.set("LLW 瞬間圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "3LW 持続圧":
                    selected_var.set("3LW 持続圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "3LW 瞬間圧":
                    selected_var.set("3LW 瞬間圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "4LW 持続圧":
                    selected_var.set("4LW 持続圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "4LW 瞬間圧":
                    selected_var.set("4LW 瞬間圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "5LW 持続圧":
                    selected_var.set("5LW 持続圧")
+                   sheet_type_applied = True
                 elif sheet_Type == "5LW 瞬間圧":
                    selected_var.set("5LW 瞬間圧")
+                   sheet_type_applied = True
             finally:
                 suppress_sheet_type_reset = False
+            if not sheet_type_applied:
+                set_sheet_type_unselected()
         else:
             print("メタデータが見つかりません。")
+            set_sheet_type_unselected()
         
         pressrange_off()
         apply_threshold_flag.set(False)
@@ -3415,6 +3486,7 @@ def load_image(show_sheettype_guidance=False):
         update_canvas_image()
 
         if show_sheettype_guidance:
+            set_sheet_type_unselected()
             comment_label = tk.Label(
                 root,
                 text=" 感圧紙の種類をリストから選択してください ",
@@ -3467,6 +3539,12 @@ def save_brightness_to_xlsx(): #26/04/16 関数名変更
     global start_x, start_y, end_x, end_y, canvas_width,canvas_height,cv_image_2, conversion_factor, press_Max, press_Min
 
     if no_image(canvas, root):
+        return
+    if is_sheet_type_unselected():
+        comment_label = tk.Label(root, text=" 感圧紙の種類をリストから選択してください ",
+                                 fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
+        comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        root.after(2000, comment_label.destroy)
         return
     if no_rect(canvas, root):
         return
@@ -3680,8 +3758,9 @@ button_metacopy.image = icon11
 button_metacopy.grid(row=19, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_metacopy.bind("<Enter>", on_enter_metacopy)
 button_metacopy.bind("<Leave>", on_leave_metacopy)
+update_entries_and_buttons()
 
-# 画面リセット　ボタン --------------------------------------------------------------------------------------------
+# 画面リセット ボタン --------------------------------------------------------------------------------------------
 
 def on_enter_reset_window(event):
     button_reset_window.config(image=icon16)
