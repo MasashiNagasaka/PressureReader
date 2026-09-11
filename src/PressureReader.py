@@ -1527,25 +1527,45 @@ def update_entries_and_buttons(*args):
         else:
             set_brightness_status(value_key, "unset")
 
+def is_valid_numeric_entry(entry):
+    value = entry.get().strip()
+    if value == "":
+        return False
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+
+
+def get_analysis_condition_missing_message():
+    # 明度は最優先で案内する（標準色見本処理が必要なため）
+    for entry in get_active_brightness_entries():
+        if not is_valid_numeric_entry(entry):
+            return " 標準色見本処理ボタンで色見本を設定してください "
+
+    has_ondo = is_valid_numeric_entry(ondo_entry)
+    has_shitsudo = is_valid_numeric_entry(shitsudo_entry)
+
+    if not has_ondo and not has_shitsudo:
+        return " 温度[℃]、湿度[%]を入力してください "
+    if not has_ondo:
+        return " 温度[℃]を入力してください "
+    if not has_shitsudo:
+        return " 湿度[%]を入力してください "
+
+    return None
+
+
 def are_all_entries_valid(all_entries, ondo_entry, shitsudo_entry):
-    targets = get_active_brightness_entries() + [ondo_entry, shitsudo_entry]
-    for entry in targets:
-        value = entry.get().strip()
-        if value == "":
-            comment_label = tk.Label(root, text=" 解析条件を入力してください ",
-                                     fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
-            comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-            root.after(2000, comment_label.destroy)
-            return False  # 空欄
-        try:
-            float(value)  # 数値でなければ ValueError
-        except ValueError:
-            comment_label = tk.Label(root, text=" 解析条件を入力してください ",
-                                     fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
-            comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-            root.after(2000, comment_label.destroy)
-            return False
-    return True  # 全て有効
+    missing_message = get_analysis_condition_missing_message()
+    if missing_message is not None:
+        comment_label = tk.Label(root, text=missing_message,
+                                 fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
+        comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        root.after(2000, comment_label.destroy)
+        return False
+    return True
 
 
 
@@ -3330,7 +3350,7 @@ def save_brightness_to_xlsx(): #26/04/16 関数名変更
         if conversion_factor <= 0:
             raise ValueError
     except (ValueError, TypeError):
-        comment_label = tk.Label(root, text=" スケーリングを設定してください ",
+        comment_label = tk.Label(root, text=" スケーリングボタンでスケール(画像の寸法)を設定してください ",
                                  fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
         comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
         root.after(2000, comment_label.destroy)
