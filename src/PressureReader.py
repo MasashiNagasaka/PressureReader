@@ -181,6 +181,122 @@ root.mainloop()
 # スプラッシュ表示●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●
 
 
+# スプラッシュ2（案内ウィンドウ） *****************************************************************************************
+def show_startup_info_window():
+    info_root = tk.Tk()
+    info_root.title("事前準備")
+    info_root.configure(bg="#f4f7fb")
+    info_root.resizable(False, False)
+
+    window_width = int(900 * (screen_height / 1080))
+    window_height = int(300 * (screen_height / 1080))
+    info_root.geometry(
+        f"{window_width}x{window_height}+{(screen_width - window_width) // 2}+{(screen_height - window_height) // 2}"
+    )
+
+    header_frame = tk.Frame(info_root, bg="#1f3a5f", height=56)
+    header_frame.pack(fill=tk.X, side=tk.TOP)
+    header_frame.pack_propagate(False)
+
+    header_label = tk.Label(
+        header_frame,
+        text="事前準備",
+        bg="#1f3a5f",
+        fg="#ffffff",
+        font=("Meiryo ui", 16, "bold"),
+        padx=16,
+    )
+    header_label.pack(anchor="w", pady=(12, 0))
+
+    body_frame = tk.Frame(info_root, bg="#f4f7fb")
+    body_frame.pack(fill=tk.BOTH, expand=True, padx=24, pady=16)
+
+    intro_label = tk.Label(
+        body_frame,
+        text="本アプリ使用時は、事前に下記を準備して下さい。",
+        justify=tk.LEFT,
+        anchor="w",
+        bg="#f4f7fb",
+        fg="#1f2d3d",
+        font=("Meiryo ui", 14),
+    )
+    intro_label.pack(anchor="w", pady=(0, 10))
+
+    body_color = "#1f2d3d"
+    highlight_color = "#c942a5"
+
+    def add_segmented_labels(container, segments):
+        for text, is_highlight in segments:
+            tk.Label(
+                container,
+                text=text,
+                justify=tk.LEFT,
+                anchor="w",
+                bg="#f4f7fb",
+                fg=highlight_color if is_highlight else body_color,
+                font=("Meiryo ui", 14, "bold") if is_highlight else ("Meiryo ui", 14),
+            ).pack(side=tk.LEFT)
+
+    def add_aligned_item(parent, left_segments, right_segments):
+        row_frame = tk.Frame(parent, bg="#f4f7fb")
+        row_frame.pack(anchor="w", fill=tk.X, pady=(0, 6))
+        row_frame.grid_columnconfigure(1, minsize=250)
+        row_frame.grid_columnconfigure(3, weight=1)
+
+        bullet_label = tk.Label(
+            row_frame,
+            text="・",
+            justify=tk.LEFT,
+            anchor="w",
+            bg="#f4f7fb",
+            fg=body_color,
+            font=("Meiryo ui", 14),
+        )
+        bullet_label.grid(row=0, column=0, sticky="nw")
+
+        left_container = tk.Frame(row_frame, bg="#f4f7fb")
+        left_container.grid(row=0, column=1, sticky="nw")
+        add_segmented_labels(left_container, left_segments)
+
+        sep_label = tk.Label(
+            row_frame,
+            text="…",
+            justify=tk.LEFT,
+            anchor="w",
+            bg="#f4f7fb",
+            fg=body_color,
+            font=("Meiryo ui", 14),
+            padx=2,
+        )
+        sep_label.grid(row=0, column=2, sticky="nw")
+
+        right_container = tk.Frame(row_frame, bg="#f4f7fb")
+        right_container.grid(row=0, column=3, sticky="nw")
+        add_segmented_labels(right_container, right_segments)
+
+    add_aligned_item(
+        body_frame,
+        [("画像PDF", True)],
+        [("感圧紙", True), ("  および  ", False), ("標準色見本", True)],
+    )
+    add_aligned_item(
+        body_frame,
+        [("温度[℃]", True), ("、", False), ("湿度[%]", True)],
+        [("圧力計測時の設定値", False)],
+    )
+    add_aligned_item(
+        body_frame,
+        [("スケール", True)],
+        [("感圧紙の", False), ("寸法[mm]", True)],
+    )
+
+    info_root.after(8000, info_root.destroy)
+    info_root.mainloop()
+
+
+show_startup_info_window()
+
+
 
 def update_canvas_image():
     """Canvasのサイズに合わせてリサイズして表示"""
@@ -1378,7 +1494,7 @@ def c2p(brightness):
 def no_image(canvas, root):
     items = canvas.find_withtag("image")
     if not items:
-        comment_label = tk.Label(root, text=" 『PNGを開く』ボタンから、画像ファイルを選択してください ",
+        comment_label = tk.Label(root, text=" 『PDF⇒PNG変換』ボタン、もしくは『PNGを開く』ボタンを押してください ",
                                  fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
         comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
         root.after(2000, comment_label.destroy)
@@ -3065,7 +3181,7 @@ def pdf_to_png():
             original_askopenfilename = filedialog.askopenfilename
             try:
                 filedialog.askopenfilename = lambda *args, **kwargs: latest_image_path
-                load_image()
+                load_image(show_sheettype_guidance=True)
             finally:
                 filedialog.askopenfilename = original_askopenfilename
     else:
@@ -3105,7 +3221,7 @@ button_p2p.bind("<Leave>", on_leave_p2p)
 # PNGを開く　ボタン --------------------------------------------------------------------------------------------
 
 # 画像を読み込む処理
-def load_image():
+def load_image(show_sheettype_guidance=False):
     global image_with_metadata, cv_image, cv_image_2, image_tk, image_id, image_path, original_cv_image, selected_var, \
         conversion_factor, atai_ave_entry, image_org_w, image_org_h, processed_image, any_dir, white_Value, white_Press, white_flag, white_Value2, source_image_path, suppress_sheet_type_reset
     
@@ -3297,6 +3413,17 @@ def load_image():
         # ★ 画像読み込み後、強制的に1回だけ再描画
         canvas.update_idletasks()
         update_canvas_image()
+
+        if show_sheettype_guidance:
+            comment_label = tk.Label(
+                root,
+                text=" 感圧紙の種類をリストから選択してください ",
+                fg="white",
+                bg="#c942a5",
+                font=("Meiryo ui", 16, "bold"),
+            )
+            comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+            root.after(8000, comment_label.destroy)
 
     else:
         print("No file selected")
