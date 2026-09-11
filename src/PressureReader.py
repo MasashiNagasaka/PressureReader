@@ -1836,10 +1836,15 @@ def set_conversion_factor():
 
 button_pixmm = ttk.Button(button_frame, text="ｽｹｰﾘﾝｸﾞ", width=7, command=set_conversion_factor)
 button_pixmm.grid(row=17, column=0, columnspan=2, padx=(10,0), pady=(5,0), sticky=tk.W)
-pixmm_entry = ttk.Entry(button_frame, width=10)
-pixmm_entry.grid(row=17, column=2, columnspan=1, padx=(5,2), pady=(5,0), sticky=tk.W)
-label_pixmm_unit = ttk.Label(button_frame, text="mm/px")
-label_pixmm_unit.grid(row=17, column=3, columnspan=1, padx=(0,10), pady=(5,0), sticky=tk.W)
+
+pixmm_unit_frame = tk.Frame(button_frame)
+pixmm_unit_frame.grid(row=17, column=2, columnspan=1, padx=(5,0), pady=(5,0), sticky=tk.W)
+
+pixmm_entry = ttk.Entry(pixmm_unit_frame, width=10)
+pixmm_entry.pack(side=tk.LEFT, padx=(0,0))
+
+label_pixmm_unit = ttk.Label(pixmm_unit_frame, text="mm/px")
+label_pixmm_unit.pack(side=tk.LEFT, padx=(1,0))
 
 
 
@@ -3318,6 +3323,18 @@ def save_brightness_to_xlsx(): #26/04/16 関数名変更
         return
     if no_rect(canvas, root):
         return
+
+    pixmm_value = pixmm_entry.get().strip()
+    try:
+        conversion_factor = float(pixmm_value)
+        if conversion_factor <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        comment_label = tk.Label(root, text=" スケーリングを設定してください ",
+                                 fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
+        comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        root.after(2000, comment_label.destroy)
+        return
     
     inv_scale = 1 / scale  # 逆スケール変換
     canvas_width = canvas.winfo_width()
@@ -3360,11 +3377,6 @@ def save_brightness_to_xlsx(): #26/04/16 関数名変更
     # 現在の日時を取得し、"yyyymmdd_hhmmss" 形式にフォーマット
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     
-    
-    if pixmm_entry.get() == "":
-        conversion_factor = 0
-    else:
-        conversion_factor = float(pixmm_entry.get())
     
     initialfile = f"1cell：{conversion_factor}mm___{current_time}.xlsx"  # ここでデフォルトのファイル名を設定 26/04/16 xlsxファイル名
     
