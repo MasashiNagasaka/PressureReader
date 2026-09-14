@@ -1,4 +1,4 @@
-import tkinter as tk
+﻿import tkinter as tk
 from tkinter import ttk, messagebox
 from PIL import Image, ImageTk, PngImagePlugin
 import cv2
@@ -19,6 +19,7 @@ import math
 import pyautogui
 from openpyxl import Workbook                  #26/04/16追加
 from openpyxl.utils import get_column_letter   #26/04/16追加
+from openpyxl.formatting.rule import ColorScaleRule
 
 
 
@@ -4111,6 +4112,45 @@ def save_brightness_to_xlsx(): #26/04/16 関数名変更
     # 行高さ
     for r in range(1, row_count + 1):
         ws.row_dimensions[r].height = cell_height
+
+    # ===============================
+    # 条件付き書式（緑・黄・赤カラースケール）
+    # ===============================
+    if row_count > 0 and col_count > 0:
+        end_col = get_column_letter(col_count)
+        data_range = f"A1:{end_col}{row_count}"
+        color_scale_rule = ColorScaleRule(
+            start_type="min",
+            start_color="00B050",  # 緑
+            mid_type="percentile",
+            mid_value=50,
+            mid_color="FFFF00",    # 黄
+            end_type="max",
+            end_color="FF0000"     # 赤
+        )
+        ws.conditional_formatting.add(data_range, color_scale_rule)
+
+    # ===============================
+    # 初期ズームを出力範囲に合わせて自動調整
+    # （100%時に 16行 x 56列 が見える実測基準）
+    # ===============================
+    if row_count > 0 and col_count > 0:
+        def calculate_excel_zoom_scale(target_rows, target_cols):
+            # 100%表示時の実測値（基準）
+            baseline_visible_rows = 16.0
+            baseline_visible_cols = 56.0
+            fit_margin = 0.95
+
+            # 安全クランプ範囲
+            min_zoom = 10.0
+            max_zoom = 400.0
+
+            zoom_h = 100.0 * baseline_visible_rows / max(1.0, float(target_rows))
+            zoom_w = 100.0 * baseline_visible_cols / max(1.0, float(target_cols))
+            raw_zoom = min(zoom_w, zoom_h) * fit_margin
+            return int(max(min_zoom, min(max_zoom, raw_zoom)))
+
+        ws.sheet_view.zoomScale = calculate_excel_zoom_scale(row_count, col_count)
     
     try:
         wb.save(file_path)
