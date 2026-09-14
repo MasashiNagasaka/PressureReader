@@ -2057,6 +2057,91 @@ label_pixmm_unit = ttk.Label(pixmm_unit_frame, text="mm/px")
 label_pixmm_unit.pack(side=tk.LEFT, padx=(1,0))
 
 
+def get_scaling_factor_value():
+    value = pixmm_entry.get().strip()
+    if value == "":
+        return None
+    try:
+        factor = float(value)
+    except ValueError:
+        return None
+    if factor <= 0:
+        return None
+    return factor
+
+
+def get_circle_input_unit():
+    factor = get_scaling_factor_value()
+    if factor is not None:
+        return "mm", factor
+    return "px", None
+
+
+def ask_circle_radius_value(unit_label):
+    dialog = tk.Toplevel(root)
+    dialog.title("円サイズ入力")
+    w = 300
+    h = 160
+    x = (screen_width - w) // 2
+    y = (screen_height - h) // 2
+    dialog.geometry(f"{w}x{h}+{x}+{y}")
+    dialog.iconphoto(False, photo_ico)
+
+    tk.Label(dialog, text="半径を入力してください").pack(pady=(10, 6))
+
+    input_frame = tk.Frame(dialog)
+    input_frame.pack(pady=4)
+    entry = tk.Entry(input_frame, width=12)
+    entry.pack(side=tk.LEFT, padx=(0, 4))
+    tk.Label(input_frame, text=unit_label).pack(side=tk.LEFT)
+
+    result = None
+
+    def submit():
+        nonlocal result
+        try:
+            value = float(entry.get())
+        except ValueError:
+            messagebox.showwarning("エラー", "有効な数値を入力してください。")
+            entry.focus_set()
+            entry.selection_range(0, tk.END)
+            return
+        if value <= 0:
+            messagebox.showwarning("エラー", "0より大きい値を入力してください。")
+            entry.focus_set()
+            entry.selection_range(0, tk.END)
+            return
+        result = value
+        dialog.destroy()
+
+    def cancel():
+        dialog.destroy()
+
+    button_frame_dialog = tk.Frame(dialog)
+    button_frame_dialog.pack(pady=(10, 10))
+    tk.Button(button_frame_dialog, text="OK", command=submit, width=10).pack(side=tk.LEFT, padx=(0, 8))
+    tk.Button(button_frame_dialog, text="キャンセル", command=cancel, width=10).pack(side=tk.LEFT)
+
+    dialog.protocol("WM_DELETE_WINDOW", cancel)
+    dialog.grab_set()
+    entry.focus_set()
+    root.wait_window(dialog)
+    return result
+
+
+def get_circle_size_display_text():
+    unit_label, scaling_factor = get_circle_input_unit()
+    rx_value = float(radius_x)
+    ry_value = float(radius_y)
+    if unit_label == "mm" and scaling_factor is not None:
+        rx_value *= scaling_factor
+        ry_value *= scaling_factor
+
+    if abs(rx_value - ry_value) < 1e-6:
+        return f"半径 {rx_value:.3f}{unit_label}"
+    return f"半径X {rx_value:.3f}{unit_label} / 半径Y {ry_value:.3f}{unit_label}"
+
+
 
 # 標準色見本処理 ボタン**********************************************************************************************
 
@@ -2802,6 +2887,7 @@ def calculate_brightness3():
     ave_press = None
     max_press = None
     min_press = None
+    px_count = 0
 
     if valid_pixels.size > 0:
         # c2pを適用した値をNumPy配列として作成
@@ -2819,21 +2905,23 @@ def calculate_brightness3():
             min_press = np.min(filtered_values)
         else:
             ave_press = None  # 範囲内に値がない場合の処理
-        
-        
-        try:
-            float_value = float(entry_value)
-            area_mm2 = pixel_area * (float_value) ** 2
-            px_mm2 = px_count * (float_value) ** 2
-            display_text = f"選択範囲面積 {area_mm2:.3f}mm²\n有効測定範囲面積 {px_mm2:.3f}mm²"
-        except ValueError:
-            display_text = f"選択範囲面積 {pixel_area:.3f}px²\n有効測定範囲面積 {px_count:.3f}px²"
-            
+             
     else:
         # 有効なピクセルがない場合のデフォルト値
         ave_press = c2p(0)
         max_press = ave_press
         min_press = ave_press
+    
+    try:
+        float_value = float(entry_value)
+        area_mm2 = pixel_area * (float_value) ** 2
+        px_mm2 = px_count * (float_value) ** 2
+        area_text = f"選択範囲面積 {area_mm2:.3f}mm²\n有効測定範囲面積 {px_mm2:.3f}mm²"
+    except ValueError:
+        area_text = f"選択範囲面積 {pixel_area:.3f}px²\n有効測定範囲面積 {px_count:.3f}px²"
+    
+    size_text = get_circle_size_display_text()
+    display_text = f"{size_text}\n{area_text}"
     
     
     # テキスト表示の更新
@@ -3007,15 +3095,29 @@ def on_mouse_down(event):
                 show_point_pressure_text(event.x, event.y, point_press)
             return
         
-        # 新しい円の作成
+        # 新しい円の作成（サイズ入力ダイアログ）
         center_x, center_y = event.x, event.y
-        radius = 0  # 初期半径
+        radius = 0
         radius_x = radius_y = 0
-        drawing_circle = True  # 円を描画中
+        unit_label, scaling_factor = get_circle_input_unit()
+        input_radius = ask_circle_radius_value(unit_label)
+        if input_radius is None:
+            return
+
+        if unit_label == "mm" and scaling_factor is not None:
+            radius_px = input_radius / scaling_factor
+        else:
+            radius_px = input_radius
+
+        if radius_px <= 0:
+            return
+
+        radius_x = radius_y = float(radius_px)
+        drawing_circle = False
         update_circle()
-        if current_value == "99":
-            point_press = calculate_point_pressure(center_x, center_y)
-            show_point_pressure_text(center_x, center_y, point_press)
+        canvas.delete("point_pressure")
+        calculate_brightness3()
+        mark_lowest_brightness_points()
 
 
 def right_click(event):
