@@ -3113,11 +3113,24 @@ def on_mouse_drag(event):
 
         elif dragging_handle is not None:  # ハンドルで拡大縮小
             circle_dragged = True
-            if dragging_handle in [0, 1]:  # 左右のハンドル
-                radius_x = abs(event.x - center_x)
-            else:  # 上下のハンドル
-                radius_y = abs(event.y - center_y)
-            update_circle()
+            if circle_id:
+                x0, y0, x1, y1 = canvas.coords(circle_id)
+                min_size = 2.0
+
+                if dragging_handle == 0:  # 左ハンドル
+                    x0 = min(event.x, x1 - min_size)
+                elif dragging_handle == 1:  # 右ハンドル
+                    x1 = max(event.x, x0 + min_size)
+                elif dragging_handle == 2:  # 上ハンドル
+                    y0 = min(event.y, y1 - min_size)
+                elif dragging_handle == 3:  # 下ハンドル
+                    y1 = max(event.y, y0 + min_size)
+
+                center_x = (x0 + x1) / 2
+                center_y = (y0 + y1) / 2
+                radius_x = (x1 - x0) / 2
+                radius_y = (y1 - y0) / 2
+                update_circle()
 
 
 def on_mouse_up(event):
