@@ -2871,6 +2871,8 @@ def update_polygon_preview():
 def set_mode_rect(value):
     global mode, current_value, rect_selected, polygon_points, point_ids, polygon_id, moving_point, dragging
     global dragging_handle, center_x, center_y, radius, circle_id, oval_handles, radius_x, radius_y
+    global circle_click_point, circle_dragged
+    global polygon_click_point, polygon_dragged
     mode = "rect"
     current_value = value
     rect_selected = True
@@ -2885,9 +2887,15 @@ def set_mode_rect(value):
     circle_id = None
     oval_handles = [None] * 4
     radius_x = radius_y = 0
+    circle_click_point = None
+    circle_dragged = False
+    polygon_click_point = None
+    polygon_dragged = False
 
 def set_mode_polygon():
     global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging
+    global circle_click_point, circle_dragged
+    global polygon_click_point, polygon_dragged
     mode = "polygon"
     rect_selected = False
     canvas.delete("mark","line","text","rect","polygon","circle","point_pressure","polygon_preview")
@@ -2896,9 +2904,15 @@ def set_mode_polygon():
     polygon_id = None
     moving_point = None
     dragging = False
+    circle_click_point = None
+    circle_dragged = False
+    polygon_click_point = None
+    polygon_dragged = False
     
 def set_mode_circle():
     global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging,dragging_handle,center_x,center_y,radius,circle_id
+    global circle_click_point, circle_dragged
+    global polygon_click_point, polygon_dragged
     mode = "circle"
     rect_selected = False
     canvas.delete("mark","line","text","rect","polygon","circle","point_pressure","polygon_preview")
@@ -2911,12 +2925,16 @@ def set_mode_circle():
     dragging_handle = None
     center_x = center_y = radius = 0
     circle_id = None
+    circle_click_point = None
+    circle_dragged = False
+    polygon_click_point = None
+    polygon_dragged = False
 
 
 def on_mouse_down(event):
     global start_x, start_y, rect, rect_selected, dimension_text, temp_line1, temp_line2, polygon_points, point_ids, polygon_id ,\
         center_x, center_y, radius, dragging_handle, oval_handles, drawing_circle, moving_circle, oval_size, oval_width, radius_x ,\
-            radius_y, top_circle_px, top_circle_py, current_value
+            radius_y, top_circle_px, top_circle_py, current_value, circle_click_point, circle_dragged, polygon_click_point, polygon_dragged
 
     if no_image(canvas, root):
         return
@@ -2936,9 +2954,13 @@ def on_mouse_down(event):
         
     elif mode == "polygon":
         if polygon_id:
+            polygon_click_point = (event.x, event.y)
+            polygon_dragged = False
             return  # すでに確定した多角形がある場合は新しい点を追加しない
         start_x = event.x
         start_y = event.y
+        polygon_click_point = None
+        polygon_dragged = False
         polygon_points.append((start_x, start_y))
         point_id = canvas.create_oval(start_x - oval_size, start_y - oval_size, start_x + oval_size, start_y + oval_size, width=oval_width, fill="cyan", outline="blue", tags="mark")
         point_ids.append(point_id)
@@ -2952,6 +2974,8 @@ def on_mouse_down(event):
         moving_circle = False
         dragging_handle = None
         drawing_circle = False  # 初期化
+        circle_dragged = False
+        circle_click_point = None
     
         # 既存の楕円がある場合
         if circle_id:
@@ -2966,6 +2990,7 @@ def on_mouse_down(event):
             if ((event.x - cx) ** 2) / (r_x ** 2) + ((event.y - cy) ** 2) / (r_y ** 2) <= 1:
                 moving_circle = True
                 start_x, start_y = event.x, event.y
+                circle_click_point = (event.x, event.y)
                 return
     
             # ハンドルがクリックされたか確認
@@ -2977,6 +3002,9 @@ def on_mouse_down(event):
                         return
 
             # 確定済み円がある状態では、円外クリックで新規作成を開始しない
+            if current_value == "99":
+                point_press = calculate_point_pressure(event.x, event.y)
+                show_point_pressure_text(event.x, event.y, point_press)
             return
         
         # 新しい円の作成
@@ -3015,7 +3043,8 @@ def right_click(event):
 
 def on_mouse_drag(event):
     global polygon_points, polygon_id, moving_point, dragging, start_x, start_y, radius, dragging_handle, rect_selected, \
-        moving_circle, circle_id, drawing_circle, center_x, center_y, oval_size, oval_width, radius_x, radius_y, first_polygon_point
+        moving_circle, circle_id, drawing_circle, center_x, center_y, oval_size, oval_width, radius_x, radius_y, first_polygon_point, circle_dragged
+    global polygon_dragged
     
     if mode == "rect" and rect_selected:
         canvas.coords(rect, start_x, start_y, event.x, event.y)
@@ -3033,7 +3062,10 @@ def on_mouse_drag(event):
         
         if moving_point is not None:
             # 指定した点を移動
+            prev_x, prev_y = polygon_points[moving_point]
             polygon_points[moving_point] = (event.x, event.y)
+            if prev_x != event.x or prev_y != event.y:
+                polygon_dragged = True
             canvas.coords(point_ids[moving_point], event.x - oval_size, event.y - oval_size, event.x + oval_size, event.y + oval_size)
         
         else:
@@ -3048,6 +3080,8 @@ def on_mouse_drag(event):
                 dragging = True
             
             dx, dy = event.x - start_x, event.y - start_y
+            if dx != 0 or dy != 0:
+                polygon_dragged = True
             polygon_points = [(x + dx, y + dy) for x, y in polygon_points]
             for i, (x, y) in enumerate(polygon_points):
                 canvas.coords(point_ids[i], x - oval_size, y - oval_size, x + oval_size, y + oval_size)
@@ -3062,6 +3096,7 @@ def on_mouse_drag(event):
 
     elif mode == "circle":
         if drawing_circle:  # 新しい円のサイズ決定
+            circle_dragged = True
             radius_x = abs(event.x - center_x)  # x方向の半径
             radius_y = abs(event.y - center_y)  # y方向の半径
             update_circle()
@@ -3069,12 +3104,15 @@ def on_mouse_drag(event):
         elif moving_circle:  # 既存の円を移動
             dx = event.x - start_x
             dy = event.y - start_y
+            if dx != 0 or dy != 0:
+                circle_dragged = True
             center_x += dx
             center_y += dy
             start_x, start_y = event.x, event.y  # 更新
             update_circle()
 
         elif dragging_handle is not None:  # ハンドルで拡大縮小
+            circle_dragged = True
             if dragging_handle in [0, 1]:  # 左右のハンドル
                 radius_x = abs(event.x - center_x)
             else:  # 上下のハンドル
@@ -3084,7 +3122,8 @@ def on_mouse_drag(event):
 
 def on_mouse_up(event):
     global rect_selected, start_x, start_y, end_x, end_y, dimension_text, pixmm_entry, scale, moving_point, dragging, dragging_handle, \
-        drawing_circle, moving_circle, current_value, polygon_id, px_count
+        drawing_circle, moving_circle, current_value, polygon_id, px_count, circle_click_point, circle_dragged
+    global polygon_click_point, polygon_dragged
     if mode == "rect" and rect_selected:
         end_x, end_y = event.x, event.y
         rect_selected = False
@@ -3130,28 +3169,68 @@ def on_mouse_up(event):
 
         # 寸法情報を描画
     elif mode == "polygon":
+        was_polygon_dragged = polygon_dragged
+        point_for_click = polygon_click_point
         moving_point = None
         dragging = False
         
         if not polygon_points or polygon_id is None:
+            polygon_click_point = None
+            polygon_dragged = False
             return  # 多角形が存在しない場合は処理を行わない
-        
-        canvas.delete("point_pressure")
-        calculate_brightness2(polygon_points)
-        mark_lowest_brightness_points()
+
+        if was_polygon_dragged:
+            canvas.delete("point_pressure")
+            calculate_brightness2(polygon_points)
+            mark_lowest_brightness_points()
+        elif current_value == "99" and point_for_click is not None:
+            point_x, point_y = point_for_click
+            point_press = calculate_point_pressure(point_x, point_y)
+            show_point_pressure_text(point_x, point_y, point_press)
+
+        polygon_click_point = None
+        polygon_dragged = False
+        return
     
     elif mode == "circle":
+        was_drawing_circle = drawing_circle
+        was_moving_circle = moving_circle
+        was_dragging_handle = dragging_handle is not None
         moving_circle = False
         dragging_handle = None
-        # ドラッグせずクリックのみのときは点圧表示を維持
-        if radius_x <= 0 and radius_y <= 0:
-            drawing_circle = False
+
+        if was_drawing_circle:
+            # ドラッグせずクリックのみのときは点圧表示を維持
+            if radius_x <= 0 and radius_y <= 0:
+                drawing_circle = False
+                circle_click_point = None
+                circle_dragged = False
+                return
+
+            drawing_circle = False  # 円の描画を確定
+            canvas.delete("point_pressure")
+            calculate_brightness3()
+            mark_lowest_brightness_points()
+            circle_click_point = None
+            circle_dragged = False
             return
 
-        drawing_circle = False  # 円の描画を確定
-        canvas.delete("point_pressure")
-        calculate_brightness3()
-        mark_lowest_brightness_points()
+        # 確定済み円のクリック/ドラッグを処理
+        if circle_id is not None:
+            if was_moving_circle or was_dragging_handle:
+                if circle_dragged:
+                    canvas.delete("point_pressure")
+                    calculate_brightness3()
+                    mark_lowest_brightness_points()
+                elif current_value == "99" and circle_click_point is not None:
+                    point_x, point_y = circle_click_point
+                    point_press = calculate_point_pressure(point_x, point_y)
+                    show_point_pressure_text(point_x, point_y, point_press)
+
+            drawing_circle = False
+            circle_click_point = None
+            circle_dragged = False
+            return
 
 def update_circle():
     global circle_id, oval_handles, center_x, center_y, radius_x, radius_y, oval_size, oval_width, top_circle_px, top_circle_py
@@ -3203,6 +3282,8 @@ button_Region_mode.state(['selected'])
 def clear_selectarea():
     global polygon_points, point_ids, polygon_id, moving_point, dragging
     global dragging_handle, center_x, center_y, radius, circle_id, oval_handles, radius_x, radius_y
+    global circle_click_point, circle_dragged
+    global polygon_click_point, polygon_dragged
     canvas.delete("rect", "text", "line", "mark", "polygon", "circle", "point_pressure", "polygon_preview")
     polygon_points = []
     point_ids = []
@@ -3214,6 +3295,10 @@ def clear_selectarea():
     circle_id = None
     oval_handles = [None] * 4
     radius_x = radius_y = 0
+    circle_click_point = None
+    circle_dragged = False
+    polygon_click_point = None
+    polygon_dragged = False
     clear_detected_value_entries()
 
     if mode == "rect":
@@ -3233,6 +3318,8 @@ def clear_selectarea():
 def reset_to_startup_state():
     global polygon_points, point_ids, polygon_id, moving_point, dragging
     global dragging_handle, center_x, center_y, radius, circle_id, oval_handles, radius_x, radius_y
+    global circle_click_point, circle_dragged
+    global polygon_click_point, polygon_dragged
     global image_with_metadata, cv_image, cv_image_2, image_tk, image_id, image_path, processed_image
     global conversion_factor, original_cv_image, any_dir, photo, source_image_path
     global start_x, start_y, end_x, end_y, line_start, line_end, temp_line1, temp_line2
@@ -3270,6 +3357,10 @@ def reset_to_startup_state():
     circle_id = None
     oval_handles = [None] * 4
     radius_x = radius_y = 0
+    circle_click_point = None
+    circle_dragged = False
+    polygon_click_point = None
+    polygon_dragged = False
 
     # 一時座標・描画補助状態を初期化
     start_x = start_y = end_x = end_y = None
@@ -4083,6 +4174,10 @@ circle_id = None
 oval_handles = [None] * 4
 
 radius_x = radius_y = 0
+circle_click_point = None
+circle_dragged = False
+polygon_click_point = None
+polygon_dragged = False
 
 mode = "rect"
 rect_selected = True
