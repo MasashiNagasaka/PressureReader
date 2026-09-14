@@ -330,7 +330,7 @@ def update_canvas_image():
     photo = ImageTk.PhotoImage(resized_image)
 
     # 画像をCanvasに描画（中央に配置）
-    canvas.delete("image", "rect", "text", "line")
+    canvas.delete("image", "rect", "text", "line", "point_pressure")
     x_offset = (canvas_width - new_width) // 2
     y_offset = (canvas_height - new_height) // 2
     canvas.create_image(x_offset, y_offset, anchor=tk.NW, image=photo, tags="image")
@@ -2356,6 +2356,70 @@ def mark_lowest_brightness_points():
         mark = canvas.create_oval(x_scaled-5, y_scaled-5, x_scaled+5, y_scaled+5, outline='blue', fill='blue', tags="mark")
         marks.append(mark)
 
+
+def calculate_point_pressure(canvas_x, canvas_y):
+    global scale, image_with_metadata, cv_image_2, white_Value, image_org_w, image_org_h
+    if cv_image_2 is None or image_with_metadata is None or scale <= 0:
+        return None
+
+    canvas_width = canvas.winfo_width()
+    canvas_height = canvas.winfo_height()
+    img_width, img_height = (
+        int(image_with_metadata.size[0] * scale),
+        int(image_with_metadata.size[1] * scale),
+    )
+    offset_x = int((canvas_width - img_width) / 2)
+    offset_y = int((canvas_height - img_height) / 2)
+
+    image_x = int((canvas_x - offset_x) * (1 / scale))
+    image_y = int((canvas_y - offset_y) * (1 / scale))
+
+    if image_x < 0 or image_y < 0 or image_x >= image_org_w or image_y >= image_org_h:
+        return None
+
+    gray_image = cv2.cvtColor(cv_image_2, cv2.COLOR_RGB2GRAY)
+    brightness = gray_image[image_y, image_x]
+    if brightness > white_Value:
+        return None
+
+    try:
+        return c2p(brightness)
+    except (ValueError, TypeError):
+        return None
+
+
+def show_point_pressure_text(canvas_x, canvas_y, pressure_value):
+    canvas.delete("point_pressure")
+    pressure_text = format_detected_pressure_value(pressure_value)
+    text = "測定範囲外" if pressure_text == "測定範囲外" else f"{pressure_text}MPa"
+
+    canvas.create_text(
+        canvas_x,
+        canvas_y - 10,
+        text=text,
+        anchor="s",
+        fill="blue",
+        font=("Arial", mm2fontsize),
+        tags=("point_pressure", "point_pressure_single"),
+    )
+
+
+def show_polygon_point_pressure_text(point_index, canvas_x, canvas_y, pressure_value):
+    point_tag = f"point_pressure_poly_{point_index}"
+    canvas.delete(point_tag)
+    pressure_text = format_detected_pressure_value(pressure_value)
+    text = "測定範囲外" if pressure_text == "測定範囲外" else f"{pressure_text}MPa"
+
+    canvas.create_text(
+        canvas_x,
+        canvas_y - 10,
+        text=text,
+        anchor="s",
+        fill="blue",
+        font=("Arial", mm2fontsize),
+        tags=("point_pressure", point_tag),
+    )
+
 label_slider = ttk.Label(
     button_frame,
     text="高圧検出箇所",
@@ -2796,7 +2860,7 @@ def set_mode_rect(value):
     mode = "rect"
     current_value = value
     rect_selected = True
-    canvas.delete("rect","text","line","mark","polygon","circle")
+    canvas.delete("rect","text","line","mark","polygon","circle","point_pressure")
     polygon_points = []
     point_ids = []
     polygon_id = None
@@ -2812,7 +2876,7 @@ def set_mode_polygon():
     global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging
     mode = "polygon"
     rect_selected = False
-    canvas.delete("mark","line","text","rect","polygon","circle")
+    canvas.delete("mark","line","text","rect","polygon","circle","point_pressure")
     polygon_points = []
     point_ids = []
     polygon_id = None
@@ -2823,7 +2887,7 @@ def set_mode_circle():
     global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging,dragging_handle,center_x,center_y,radius,circle_id
     mode = "circle"
     rect_selected = False
-    canvas.delete("mark","line","text","rect","polygon","circle")
+    canvas.delete("mark","line","text","rect","polygon","circle","point_pressure")
     polygon_points = []
     point_ids = []
     polygon_id = None
@@ -2850,8 +2914,11 @@ def on_mouse_down(event):
         start_x = event.x
         start_y = event.y
         rect_selected = True
-        canvas.delete("rect","text","line","mark")
+        canvas.delete("rect","text","line","mark","point_pressure")
         rect = canvas.create_rectangle(start_x, start_y, start_x, start_y, outline='blue',width=1, tags="rect")
+        if current_value == "99":
+            point_press = calculate_point_pressure(start_x, start_y)
+            show_point_pressure_text(start_x, start_y, point_press)
         
     elif mode == "polygon":
         if polygon_id:
@@ -2862,6 +2929,9 @@ def on_mouse_down(event):
         point_id = canvas.create_oval(start_x - oval_size, start_y - oval_size, start_x + oval_size, start_y + oval_size, width=oval_width, fill="cyan", outline="blue", tags="mark")
         point_ids.append(point_id)
         rect_selected = False
+        if current_value == "99":
+            point_press = calculate_point_pressure(start_x, start_y)
+            show_polygon_point_pressure_text(len(polygon_points) - 1, start_x, start_y, point_press)
         
     elif mode == "circle":
         moving_circle = False
@@ -2897,6 +2967,9 @@ def on_mouse_down(event):
         radius_x = radius_y = 0
         drawing_circle = True  # 円を描画中
         update_circle()
+        if current_value == "99":
+            point_press = calculate_point_pressure(center_x, center_y)
+            show_point_pressure_text(center_x, center_y, point_press)
 
 
 def right_click(event):
@@ -2908,6 +2981,7 @@ def right_click(event):
         if polygon_id:
             canvas.delete("rect","text","line","polygon")  # 既存の多角形を削除
         
+        canvas.delete("point_pressure")
         polygon_id = canvas.create_polygon(polygon_points, outline="blue", fill="", width=1, tags="polygon")
         calculate_brightness2(polygon_points)
         mark_lowest_brightness_points()
@@ -2915,6 +2989,7 @@ def right_click(event):
         radius_max = max(radius_x ,radius_y)
         radius_x = radius_max
         radius_y = radius_max
+        canvas.delete("point_pressure")
         update_circle()
         calculate_brightness3()
         mark_lowest_brightness_points()
@@ -3001,7 +3076,12 @@ def on_mouse_up(event):
         x2, y2 = max(start_x, end_x), max(start_y, end_y)
         # print(x1,x2,y1,y2)
 
+        # ドラッグしていないクリックのみの場合は、点圧表示を維持して終了
+        if abs(x2 - x1) <= 1 and abs(y2 - y1) <= 1:
+            return
+
         # 既存の処理を保持
+        canvas.delete("point_pressure")
         calculate_brightness(x1, y1, x2, y2, current_value)
         mark_lowest_brightness_points()
         
@@ -3038,13 +3118,20 @@ def on_mouse_up(event):
         if not polygon_points or polygon_id is None:
             return  # 多角形が存在しない場合は処理を行わない
         
+        canvas.delete("point_pressure")
         calculate_brightness2(polygon_points)
         mark_lowest_brightness_points()
     
     elif mode == "circle":
         moving_circle = False
         dragging_handle = None
+        # ドラッグせずクリックのみのときは点圧表示を維持
+        if radius_x <= 0 and radius_y <= 0:
+            drawing_circle = False
+            return
+
         drawing_circle = False  # 円の描画を確定
+        canvas.delete("point_pressure")
         calculate_brightness3()
         mark_lowest_brightness_points()
 
@@ -3098,7 +3185,7 @@ button_Region_mode.state(['selected'])
 def clear_selectarea():
     global polygon_points, point_ids, polygon_id, moving_point, dragging
     global dragging_handle, center_x, center_y, radius, circle_id, oval_handles, radius_x, radius_y
-    canvas.delete("rect", "text", "line", "mark", "polygon", "circle")
+    canvas.delete("rect", "text", "line", "mark", "polygon", "circle", "point_pressure")
     polygon_points = []
     point_ids = []
     polygon_id = None
@@ -3134,7 +3221,7 @@ def reset_to_startup_state():
     global white_Value, white_Press, white_flag, px_count
 
     # キャンバス上の表示をクリア（画像を含む）
-    canvas.delete("image", "rect", "text", "line", "mark", "polygon", "circle")
+    canvas.delete("image", "rect", "text", "line", "mark", "polygon", "circle", "point_pressure")
 
     # 画像・計算関連の状態を起動直後相当に戻す
     image_with_metadata = None
