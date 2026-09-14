@@ -2257,21 +2257,21 @@ def update_label(value):
     
     slider_value.set(f"{int(float(value))}")
     canvas.delete("mark")
-    
-    # 左上と右下の座標を計算
-    x1, y1 = min(start_x, end_x), min(start_y, end_y)
-    x2, y2 = max(start_x, end_x), max(start_y, end_y)
-    mark_lowest_brightness_points(x1, y1, x2, y2)
+    mark_lowest_brightness_points()
     
 
 # 圧力の高い点にマークする
-def mark_lowest_brightness_points(start_x, start_y, end_x, end_y):
+def mark_lowest_brightness_points():
     global marks, rect, scale, image_org_w, image_org_h, canvas_width, canvas_height, image_with_metadata
+    global mode, polygon_points, polygon_id, center_x, center_y, radius_x, radius_y, circle_id
+    global start_x, start_y, end_x, end_y
     
     try:
         num_points = int(slider_value.get())
     except ValueError:
         print("Error: Invalid number in mode_3_entry.")
+        return
+    if num_points <= 0:
         return
     try:
         min_brightness_threshold = 0.0  # 任意の明るさのしきい値を設定
@@ -2279,26 +2279,60 @@ def mark_lowest_brightness_points(start_x, start_y, end_x, end_y):
         print("Error: Invalid value in brightness_entry_10.")
         return
 
-    h, w, _ = cv_image_2.shape
-    gray_image = cv2.cvtColor(cv_image_2, cv2.COLOR_RGB2GRAY)
-    
-    if rect is not None:  # 選択範囲が指定されている場合
-        inv_scale = 1 / scale  # 逆スケール変換
-        canvas_width = canvas.winfo_width()
-        canvas_height = canvas.winfo_height()
-        img_width, img_height = (int(image_with_metadata.size[0] * scale), 
-                             int(image_with_metadata.size[1] * scale))
-        start_x2, start_y2 = max(0, int(start_x * 1)-int((canvas_width-img_width)/2)), max(0, int(start_y * 1)-int((canvas_height-img_height)/2))
-        end_x2, end_y2 = min(canvas.winfo_width(), int(end_x * 1)-int((canvas_width-img_width)/2)), min(canvas.winfo_height(), int(end_y * 1)-int((canvas_height-img_height)/2))
+    if cv_image_2 is None:
+        return
 
-        start_x3 = int(start_x2 * inv_scale)
-        start_y3 = int(start_y2 * inv_scale)
-        end_x3 = int(end_x2 * inv_scale)
-        end_y3 = int(end_y2 * inv_scale)
-        
-        mask = gray_image[start_y3:end_y3, start_x3:end_x3] > min_brightness_threshold
+    gray_image = cv2.cvtColor(cv_image_2, cv2.COLOR_RGB2GRAY)
+
+    if scale <= 0:
+        return
+    inv_scale = 1 / scale  # 逆スケール変換
+    canvas_width = canvas.winfo_width()
+    canvas_height = canvas.winfo_height()
+    img_width, img_height = (
+        int(image_with_metadata.size[0] * scale),
+        int(image_with_metadata.size[1] * scale),
+    )
+    offset_x = int((canvas_width - img_width) / 2)
+    offset_y = int((canvas_height - img_height) / 2)
+
+    selection_mask = np.zeros((image_org_h, image_org_w), dtype=np.uint8)
+    has_selection = False
+
+    if mode == "rect":
+        if rect is not None:
+            x1 = max(0, min(int(start_x), int(end_x)) - offset_x)
+            y1 = max(0, min(int(start_y), int(end_y)) - offset_y)
+            x2 = min(img_width, max(int(start_x), int(end_x)) - offset_x)
+            y2 = min(img_height, max(int(start_y), int(end_y)) - offset_y)
+            sx = max(0, int(x1 * inv_scale))
+            sy = max(0, int(y1 * inv_scale))
+            ex = min(image_org_w, int(x2 * inv_scale))
+            ey = min(image_org_h, int(y2 * inv_scale))
+            if ex > sx and ey > sy:
+                selection_mask[sy:ey, sx:ex] = 255
+                has_selection = True
+    elif mode == "polygon":
+        if polygon_id is not None and len(polygon_points) >= 3:
+            scaled_polygon_points = [
+                (int((x - offset_x) * inv_scale), int((y - offset_y) * inv_scale))
+                for x, y in polygon_points
+            ]
+            cv2.fillPoly(selection_mask, [np.array(scaled_polygon_points, dtype=np.int32)], 255)
+            has_selection = np.any(selection_mask > 0)
+    elif mode == "circle":
+        if circle_id is not None and radius_x > 0 and radius_y > 0:
+            cx = int((center_x - offset_x) * inv_scale)
+            cy = int((center_y - offset_y) * inv_scale)
+            rx = max(1, int(radius_x * inv_scale))
+            ry = max(1, int(radius_y * inv_scale))
+            cv2.ellipse(selection_mask, (cx, cy), (rx, ry), 0, 0, 360, 255, -1)
+            has_selection = np.any(selection_mask > 0)
+
+    if has_selection:
+        mask = (selection_mask > 0) & (gray_image > min_brightness_threshold)
         filtered_image = np.full_like(gray_image, 255)
-        filtered_image[start_y3:end_y3, start_x3:end_x3] = np.where(mask, gray_image[start_y3:end_y3, start_x3:end_x3], 255)
+        filtered_image[mask] = gray_image[mask]
     else:
         mask = gray_image > min_brightness_threshold
         filtered_image = np.where(mask, gray_image, 255)
@@ -2876,12 +2910,14 @@ def right_click(event):
         
         polygon_id = canvas.create_polygon(polygon_points, outline="blue", fill="", width=1, tags="polygon")
         calculate_brightness2(polygon_points)
+        mark_lowest_brightness_points()
     elif mode == "circle":
         radius_max = max(radius_x ,radius_y)
         radius_x = radius_max
         radius_y = radius_max
         update_circle()
         calculate_brightness3()
+        mark_lowest_brightness_points()
         
 
 def on_mouse_drag(event):
@@ -2967,7 +3003,7 @@ def on_mouse_up(event):
 
         # 既存の処理を保持
         calculate_brightness(x1, y1, x2, y2, current_value)
-        mark_lowest_brightness_points(x1, y1, x2, y2)
+        mark_lowest_brightness_points()
         
         # ピクセル面積を計算
         img_width, img_height = image_with_metadata.size
@@ -3002,13 +3038,15 @@ def on_mouse_up(event):
         if not polygon_points or polygon_id is None:
             return  # 多角形が存在しない場合は処理を行わない
         
-        calculate_brightness2(polygon_points)      
+        calculate_brightness2(polygon_points)
+        mark_lowest_brightness_points()
     
     elif mode == "circle":
         moving_circle = False
         dragging_handle = None
         drawing_circle = False  # 円の描画を確定
         calculate_brightness3()
+        mark_lowest_brightness_points()
 
 def update_circle():
     global circle_id, oval_handles, center_x, center_y, radius_x, radius_y, oval_size, oval_width, top_circle_px, top_circle_py
