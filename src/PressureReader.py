@@ -1511,6 +1511,28 @@ def no_rect(canvas, root):
         return True
     return False
 
+def no_selection_for_export(canvas, root):
+    global mode, polygon_points, polygon_id, circle_id, radius_x, radius_y
+    if mode == "rect":
+        return no_rect(canvas, root)
+    if mode == "polygon":
+        if not polygon_points or polygon_id is None or len(polygon_points) < 3:
+            comment_label = tk.Label(root, text=" 選択範囲を作成してください ",
+                                     fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
+            comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+            root.after(2000, comment_label.destroy)
+            return True
+        return False
+    if mode == "circle":
+        if circle_id is None or radius_x <= 0 or radius_y <= 0:
+            comment_label = tk.Label(root, text=" 選択範囲を作成してください ",
+                                     fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
+            comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+            root.after(2000, comment_label.destroy)
+            return True
+        return False
+    return no_rect(canvas, root)
+
 def completed_p2p():
     comment_label = tk.Label(root, text=" 変換が完了しました ",
                              fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
@@ -3537,6 +3559,7 @@ button_hiraku.bind("<Leave>", on_leave_hiraku)
 
 def save_brightness_to_xlsx(): #26/04/16 関数名変更
     global start_x, start_y, end_x, end_y, canvas_width,canvas_height,cv_image_2, conversion_factor, press_Max, press_Min
+    global mode, polygon_points, polygon_id, center_x, center_y, radius_x, radius_y, image_org_h, image_org_w
 
     if no_image(canvas, root):
         return
@@ -3546,7 +3569,7 @@ def save_brightness_to_xlsx(): #26/04/16 関数名変更
         comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
         root.after(2000, comment_label.destroy)
         return
-    if no_rect(canvas, root):
+    if no_selection_for_export(canvas, root):
         return
 
     pixmm_value = pixmm_entry.get().strip()
@@ -3564,18 +3587,82 @@ def save_brightness_to_xlsx(): #26/04/16 関数名変更
     inv_scale = 1 / scale  # 逆スケール変換
     canvas_width = canvas.winfo_width()
     canvas_height = canvas.winfo_height()
-    img_width, img_height = (int(image_with_metadata.size[0] * scale), 
-                         int(image_with_metadata.size[1] * scale))
-    start_x2, start_y2 = max(0, int(start_x * 1)-int((canvas_width-img_width)/2)), max(0, int(start_y * 1)-int((canvas_height-img_height)/2))
-    end_x2, end_y2 = min(canvas.winfo_width(), int(end_x * 1)-int((canvas_width-img_width)/2)), min(canvas.winfo_height(), int(end_y * 1)-int((canvas_height-img_height)/2))
+    img_width, img_height = (int(image_with_metadata.size[0] * scale),
+                             int(image_with_metadata.size[1] * scale))
+    offset_x = int((canvas_width - img_width) / 2)
+    offset_y = int((canvas_height - img_height) / 2)
 
-    start_x3 = int(start_x2 * inv_scale)
-    start_y3 = int(start_y2 * inv_scale)
-    end_x3 = int(end_x2 * inv_scale)
-    end_y3 = int(end_y2 * inv_scale)
-    
-    selected_region = cv_image_2[start_y3:end_y3, start_x3:end_x3]
-    gray_region = cv2.cvtColor(selected_region, cv2.COLOR_RGB2GRAY)
+    gray_image = cv2.cvtColor(cv_image_2, cv2.COLOR_RGB2GRAY)
+
+    if mode == "rect":
+        start_x2 = int(start_x - offset_x)
+        start_y2 = int(start_y - offset_y)
+        end_x2 = int(end_x - offset_x)
+        end_y2 = int(end_y - offset_y)
+
+        x1 = max(0, min(start_x2, end_x2))
+        y1 = max(0, min(start_y2, end_y2))
+        x2 = min(img_width, max(start_x2, end_x2))
+        y2 = min(img_height, max(start_y2, end_y2))
+
+        start_x3 = max(0, int(x1 * inv_scale))
+        start_y3 = max(0, int(y1 * inv_scale))
+        end_x3 = min(image_org_w, int(x2 * inv_scale))
+        end_y3 = min(image_org_h, int(y2 * inv_scale))
+
+        if end_x3 <= start_x3 or end_y3 <= start_y3:
+            comment_label = tk.Label(root, text=" 選択範囲を作成してください ",
+                                     fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
+            comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+            root.after(2000, comment_label.destroy)
+            return
+
+        gray_region = gray_image[start_y3:end_y3, start_x3:end_x3]
+        mask_region = np.ones(gray_region.shape, dtype=bool)
+
+    elif mode == "polygon":
+        scaled_polygon_points = [
+            (int((x - offset_x) * inv_scale), int((y - offset_y) * inv_scale))
+            for x, y in polygon_points
+        ]
+        mask_full = np.zeros((image_org_h, image_org_w), dtype=np.uint8)
+        cv2.fillPoly(mask_full, [np.array(scaled_polygon_points, dtype=np.int32)], 255)
+        ys, xs = np.where(mask_full > 0)
+        if xs.size == 0 or ys.size == 0:
+            comment_label = tk.Label(root, text=" 選択範囲を作成してください ",
+                                     fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
+            comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+            root.after(2000, comment_label.destroy)
+            return
+        min_x, max_x = int(xs.min()), int(xs.max()) + 1
+        min_y, max_y = int(ys.min()), int(ys.max()) + 1
+        gray_region = gray_image[min_y:max_y, min_x:max_x]
+        mask_region = mask_full[min_y:max_y, min_x:max_x] > 0
+
+    elif mode == "circle":
+        cx = int((center_x - offset_x) * inv_scale)
+        cy = int((center_y - offset_y) * inv_scale)
+        rx = max(1, int(radius_x * inv_scale))
+        ry = max(1, int(radius_y * inv_scale))
+        mask_full = np.zeros((image_org_h, image_org_w), dtype=np.uint8)
+        cv2.ellipse(mask_full, (cx, cy), (rx, ry), 0, 0, 360, 255, -1)
+        ys, xs = np.where(mask_full > 0)
+        if xs.size == 0 or ys.size == 0:
+            comment_label = tk.Label(root, text=" 選択範囲を作成してください ",
+                                     fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
+            comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+            root.after(2000, comment_label.destroy)
+            return
+        min_x, max_x = int(xs.min()), int(xs.max()) + 1
+        min_y, max_y = int(ys.min()), int(ys.max()) + 1
+        gray_region = gray_image[min_y:max_y, min_x:max_x]
+        mask_region = mask_full[min_y:max_y, min_x:max_x] > 0
+    else:
+        comment_label = tk.Label(root, text=" 選択範囲を作成してください ",
+                                 fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
+        comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        root.after(2000, comment_label.destroy)
+        return
 
 
     # csv保存時の数値設定
@@ -3585,6 +3672,9 @@ def save_brightness_to_xlsx(): #26/04/16 関数名変更
     # 変換処理
     for y in range(gray_region.shape[0]):
         for x in range(gray_region.shape[1]):
+            if not mask_region[y, x]:
+                converted_region[y, x] = None
+                continue
             brightness = gray_region[y, x]
             converted_brightness = c2p(brightness)
             if converted_brightness >= press_Min and converted_brightness <= press_Max:
@@ -3673,7 +3763,27 @@ def save_brightness_to_xlsx(): #26/04/16 関数名変更
     for r in range(1, row_count + 1):
         ws.row_dimensions[r].height = cell_height
     
-    wb.save(file_path)            
+    try:
+        wb.save(file_path)
+        comment_label = tk.Label(
+            root,
+            text=" Excelファイルを出力しました ",
+            fg="white",
+            bg="#c942a5",
+            font=("Meiryo ui", 16, "bold")
+        )
+        comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        root.after(2000, comment_label.destroy)
+    except Exception:
+        comment_label = tk.Label(
+            root,
+            text=" Excelファイルの出力に失敗しました ",
+            fg="white",
+            bg="#c942a5",
+            font=("Meiryo ui", 16, "bold")
+        )
+        comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        root.after(2000, comment_label.destroy)
 
 #ボタン設置
 def on_enter_xl(event):
