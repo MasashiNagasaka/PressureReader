@@ -2853,6 +2853,20 @@ def calculate_brightness3():
     update_detected_value_entries(ave_press, max_press, min_press)
 
 
+def update_polygon_preview():
+    global polygon_points, polygon_id
+    canvas.delete("polygon_preview")
+    if polygon_id is not None:
+        return
+    if len(polygon_points) < 2:
+        return
+
+    coords = []
+    for x, y in polygon_points:
+        coords.extend([x, y])
+    canvas.create_line(*coords, fill="blue", width=1, tags="polygon_preview")
+
+
 # 範囲選択モード切替
 def set_mode_rect(value):
     global mode, current_value, rect_selected, polygon_points, point_ids, polygon_id, moving_point, dragging
@@ -2860,7 +2874,7 @@ def set_mode_rect(value):
     mode = "rect"
     current_value = value
     rect_selected = True
-    canvas.delete("rect","text","line","mark","polygon","circle","point_pressure")
+    canvas.delete("rect","text","line","mark","polygon","circle","point_pressure","polygon_preview")
     polygon_points = []
     point_ids = []
     polygon_id = None
@@ -2876,7 +2890,7 @@ def set_mode_polygon():
     global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging
     mode = "polygon"
     rect_selected = False
-    canvas.delete("mark","line","text","rect","polygon","circle","point_pressure")
+    canvas.delete("mark","line","text","rect","polygon","circle","point_pressure","polygon_preview")
     polygon_points = []
     point_ids = []
     polygon_id = None
@@ -2887,7 +2901,7 @@ def set_mode_circle():
     global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging,dragging_handle,center_x,center_y,radius,circle_id
     mode = "circle"
     rect_selected = False
-    canvas.delete("mark","line","text","rect","polygon","circle","point_pressure")
+    canvas.delete("mark","line","text","rect","polygon","circle","point_pressure","polygon_preview")
     polygon_points = []
     point_ids = []
     polygon_id = None
@@ -2928,6 +2942,7 @@ def on_mouse_down(event):
         polygon_points.append((start_x, start_y))
         point_id = canvas.create_oval(start_x - oval_size, start_y - oval_size, start_x + oval_size, start_y + oval_size, width=oval_width, fill="cyan", outline="blue", tags="mark")
         point_ids.append(point_id)
+        update_polygon_preview()
         rect_selected = False
         if current_value == "99":
             point_press = calculate_point_pressure(start_x, start_y)
@@ -2960,6 +2975,9 @@ def on_mouse_down(event):
                     if hx0 <= event.x <= hx1 and hy0 <= event.y <= hy1:
                         dragging_handle = i
                         return
+
+            # 確定済み円がある状態では、円外クリックで新規作成を開始しない
+            return
         
         # 新しい円の作成
         center_x, center_y = event.x, event.y
@@ -2981,7 +2999,7 @@ def right_click(event):
         if polygon_id:
             canvas.delete("rect","text","line","polygon")  # 既存の多角形を削除
         
-        canvas.delete("point_pressure")
+        canvas.delete("point_pressure","polygon_preview")
         polygon_id = canvas.create_polygon(polygon_points, outline="blue", fill="", width=1, tags="polygon")
         calculate_brightness2(polygon_points)
         mark_lowest_brightness_points()
@@ -3185,7 +3203,7 @@ button_Region_mode.state(['selected'])
 def clear_selectarea():
     global polygon_points, point_ids, polygon_id, moving_point, dragging
     global dragging_handle, center_x, center_y, radius, circle_id, oval_handles, radius_x, radius_y
-    canvas.delete("rect", "text", "line", "mark", "polygon", "circle", "point_pressure")
+    canvas.delete("rect", "text", "line", "mark", "polygon", "circle", "point_pressure", "polygon_preview")
     polygon_points = []
     point_ids = []
     polygon_id = None
@@ -3221,7 +3239,7 @@ def reset_to_startup_state():
     global white_Value, white_Press, white_flag, px_count
 
     # キャンバス上の表示をクリア（画像を含む）
-    canvas.delete("image", "rect", "text", "line", "mark", "polygon", "circle", "point_pressure")
+    canvas.delete("image", "rect", "text", "line", "mark", "polygon", "circle", "point_pressure", "polygon_preview")
 
     # 画像・計算関連の状態を起動直後相当に戻す
     image_with_metadata = None
