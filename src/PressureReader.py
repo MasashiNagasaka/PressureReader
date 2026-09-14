@@ -1661,10 +1661,11 @@ def set_sheet_type_unselected():
 
 
 def update_entries_and_buttons(*args):
-    global suppress_sheet_type_reset
+    global suppress_sheet_type_reset, swatch_brightness_bounds
     if not suppress_sheet_type_reset:
         for entry in all_entries:
             entry.delete(0, tk.END)
+        swatch_brightness_bounds.clear()
         clear_detected_value_entries()
 
     # 全てのエントリ/ボタン/状態表示を非表示にする
@@ -1888,6 +1889,7 @@ brightness_status_labels = {
     )
     for key, _, _ in brightness_slots
 }
+swatch_brightness_bounds = {}
 
 
 def get_active_brightness_keys(selected_value=None):
@@ -2146,8 +2148,8 @@ def get_circle_size_display_text():
 
 # 標準色見本処理 ボタン**********************************************************************************************
 
-def insert_to_visible_entries(avg_list):
-    global current_value
+def insert_to_visible_entries(avg_list, bounds_list=None):
+    global current_value, swatch_brightness_bounds
     active_slots = get_active_brightness_slots()
 
     # 明度値を内部エントリーへ保持し、状態表示を更新
@@ -2157,10 +2159,16 @@ def insert_to_visible_entries(avg_list):
             avg_value = avg_list[i]
             entry.insert(0, f"{avg_value:.2f}")
             set_brightness_status(value_key, "success")
+            if bounds_list is not None and i < len(bounds_list):
+                min_value, max_value = bounds_list[i]
+                swatch_brightness_bounds[value_key] = (float(min_value), float(max_value))
+            else:
+                swatch_brightness_bounds.pop(value_key, None)
             print(f"[DEBUG] swatch brightness {format_brightness_key(value_key)} = {avg_value:.2f}")
         else:
             entry.insert(0, "")
             set_brightness_status(value_key, "failed")
+            swatch_brightness_bounds.pop(value_key, None)
             print(f"[DEBUG] swatch brightness {format_brightness_key(value_key)} = None (failed)")
 
 #ボタン設置
@@ -2532,8 +2540,46 @@ def apply_threshold():
         print("No image loaded.")
         return
     try:
-        low_threshold = bri_Max
-        high_threshold = bri_Min
+        # 境界誤差を抑えるため、固定マージン1でしきい値を内側へ寄せる
+        threshold_margin = 1
+        low_threshold = max(0, int(math.floor(bri_Max)) - threshold_margin)
+        high_threshold = min(255, int(math.ceil(bri_Min)) + threshold_margin)
+
+        # 色見本端点（先頭/末尾）は必ずレンジ内へ入るようにクランプ
+        active_slots = get_active_brightness_slots()
+        if len(active_slots) > 0:
+            top_key = active_slots[0][0]
+            bottom_key = active_slots[-1][0]
+
+            top_bounds = swatch_brightness_bounds.get(top_key)
+            if top_bounds is not None:
+                top_brightness_min = top_bounds[0]
+                low_threshold = min(low_threshold, int(math.floor(top_brightness_min)))
+            else:
+                top_entry = active_slots[0][1].get().strip()
+                try:
+                    top_brightness_min = float(top_entry)
+                    low_threshold = min(low_threshold, int(math.floor(top_brightness_min)))
+                except (ValueError, TypeError):
+                    top_brightness_min = None
+
+            bottom_bounds = swatch_brightness_bounds.get(bottom_key)
+            if bottom_bounds is not None:
+                bottom_brightness_max = bottom_bounds[1]
+                high_threshold = max(high_threshold, int(math.ceil(bottom_brightness_max)))
+            else:
+                bottom_entry = active_slots[-1][1].get().strip()
+                try:
+                    bottom_brightness_max = float(bottom_entry)
+                    high_threshold = max(high_threshold, int(math.ceil(bottom_brightness_max)))
+                except (ValueError, TypeError):
+                    bottom_brightness_max = None
+        else:
+            top_key = None
+            bottom_key = None
+            top_brightness_min = None
+            bottom_brightness_max = None
+
         if low_threshold >= high_threshold:
             print("Error: Low threshold must be smaller than High threshold.")
             return
@@ -2560,6 +2606,12 @@ def apply_threshold():
     # 明度しきい値に基づいてマスク作成
     mask_high = (gray > high_threshold) & (gray <= white_Value)
     mask_low = gray < low_threshold
+    print(
+        f"[DEBUG] threshold low={low_threshold} high={high_threshold} "
+        f"top_key={top_key} top_min={top_brightness_min} "
+        f"bottom_key={bottom_key} bottom_max={bottom_brightness_max} "
+        f"mask_low={int(mask_low.sum())} mask_high={int(mask_high.sum())}"
+    )
     
     # 画像を1次元ビューに変換
     flat_rgb = rgb_np.reshape(-1, 3)
@@ -2725,11 +2777,14 @@ def calculate_brightness(start_x, start_y, end_x, end_y, value_key, polygon_poin
                         continue
                 
                     mean_final = np.mean(filtered)
-                    results.append((region_size, mean_final))
+                    min_final = np.min(filtered)
+                    max_final = np.max(filtered)
+                    results.append((region_size, mean_final, min_final, max_final))
                 
                 # 出力とエントリーへの記入処理
-                avg_list = [avg for _, avg in results]
-                insert_to_visible_entries(avg_list)
+                avg_list = [avg for _, avg, _, _ in results]
+                bounds_list = [(min_v, max_v) for _, _, min_v, max_v in results]
+                insert_to_visible_entries(avg_list, bounds_list)
 
                 # value_key=="14" 後は、部分設定でも通常モードへ戻す
                 if len(avg_list) > 0:
