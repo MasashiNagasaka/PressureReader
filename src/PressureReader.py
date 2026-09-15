@@ -3871,11 +3871,12 @@ def show_contact_info():
 label_contact = ttk.Label(button_frame, text="お問い合わせ：", style="Custom.TLabel")
 label_contact.grid(row=35, column=0, columnspan=4, padx=(5, 0), pady=(10, 0), sticky=tk.W)
 
-button_contact = ttk.Button(button_frame, text="問い合わせ先", width=24, command=show_contact_info)
+button_contact = ttk.Button(button_frame, text="問い合わせ先", command=show_contact_info)
 button_contact.grid(row=36, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 
 # 「解析条件をコピー」は自然幅のまま維持し、
-# 「画面リセット」だけを実表示幅で合わせる。
+# 「画面リセット」は実表示幅で合わせる。
+# さらに「問い合わせ先」は「画面リセット」と同じ実表示幅に合わせる。
 def sync_reset_button_width_to_metacopy():
     root.update_idletasks()
 
@@ -3891,6 +3892,14 @@ def sync_reset_button_width_to_metacopy():
     button_reset_window.configure(
         padding=[left_pad, top_pad, base_right_pad + extra_right_pad, bottom_pad]
     )
+
+    root.update_idletasks()
+    reset_aligned_width = button_reset_window.winfo_reqwidth()
+    contact_width = button_contact.winfo_reqwidth()
+    contact_extra_right_pad = max(0, reset_aligned_width - contact_width)
+    contact_extra_left_pad = contact_extra_right_pad // 2
+    contact_extra_right_pad = contact_extra_right_pad - contact_extra_left_pad
+    button_contact.configure(padding=[contact_extra_left_pad, 0, contact_extra_right_pad, 0])
 
 
 root.after_idle(sync_reset_button_width_to_metacopy)
