@@ -1,0 +1,159 @@
+sheet_setting.csv フォーマット説明書
+====================================
+
+最終更新: 2026-09-15
+対象ファイル: src/config/sheet_setting.csv
+対象コード: src/PressureReader.py の load_sheet_setting_config()
+
+
+1. このCSVの目的
+----------------
+- 感圧紙ごとの設定値（圧力範囲、標準色見本、温湿度条件、補間テーブル）を
+  コード外で管理するための設定ファイルです。
+- アプリ起動時に1回読み込まれ、圧力換算(c2p)で利用されます。
+
+
+2. 基本ルール
+-------------
+- 文字コード: UTF-8(BOM付き推奨)。読み込み時は UTF-8-SIG を優先し、必要時に CP932 を試行。
+- ヘッダ行: なし
+- 空行: 可（無視）
+- 1行目の先頭列(kind)で行の意味が決まる可変長形式
+- 感圧紙ブロックは必ず `sheet,<sheet_type>` から開始
+
+
+3. 行タイプ一覧
+---------------
+3-1. sheet 行
+  形式:
+    sheet,<sheet_type>
+  例:
+    sheet,4LW 持続圧
+  意味:
+    以降の行をこの感圧紙種別の設定として扱います。
+
+3-2. condition 行
+  形式:
+    condition,<press_max>,<press_min>,<temp_humidity_enabled>
+  例:
+    condition,0.2,0.05,TRUE
+  意味:
+    - press_max: 圧力上限(MPa)
+    - press_min: 圧力下限(MPa)
+    - temp_humidity_enabled: 温湿度条件分岐を使うかどうか
+      - TRUE  : 温度・湿度で region 分岐を行う
+      - FALSE : region 分岐を行わず、単一チャート(_DEFAULT_)を使う
+  備考:
+    TRUE/FALSE は大文字・小文字違い(True/true 等)も許容。
+
+3-3. brightness 行
+  形式:
+    brightness,<seq>,<after_value>
+  例:
+    brightness,0,1.0
+  意味:
+    標準色見本の明度テーブル(after_values)です。
+  ルール:
+    seq は 0 から連番である必要があります。
+
+3-4. line 行
+  形式:
+    line,<seq>,<m>,<b>
+  例:
+    line,0,-0.2,77.0
+  意味:
+    温湿度条件分岐で使う境界線の係数です。
+    境界式は y_line = m*x + b です。
+    - x: 温度入力値 (ondo_entry)
+    - y: 湿度入力値 (shitsudo_entry)
+  ルール:
+    seq は 0 から連番である必要があります。
+
+3-5. region 行
+  形式:
+    region,<region_name>
+  例:
+    region,A
+  意味:
+    この後ろに続く Standard_Chart_x / Standard_Chart_y が
+    この region のチャートになります。
+
+3-6. Standard_Chart_x 行
+  形式:
+    Standard_Chart_x,<x1>,<x2>,...,<xn>
+  意味:
+    圧力換算用チャートの X 配列（圧力軸）です。
+
+3-7. Standard_Chart_y 行
+  形式:
+    Standard_Chart_y,<y1>,<y2>,...,<yn>
+  意味:
+    圧力換算用チャートの Y 配列（明度軸）です。
+
+
+4. temp_humidity_enabled の意味（重要）
+---------------------------------------
+4-1. TRUE の場合
+- 温度・湿度入力値を使って region を決定します。
+- 判定手順:
+  1) line を先頭から順に評価（y > m*x+b）
+  2) 条件に合った最初の region を採用
+  3) どの line にも該当しなければ最後の region（regions[-1]）を採用
+- 必須データ:
+  - line 行
+  - region 行（1件以上）
+  - 各 region に対応する Standard_Chart_x / Standard_Chart_y
+- 整合条件:
+  line件数 + 1 == region件数
+
+4-2. FALSE の場合
+- 温度・湿度による region 分岐は行いません。
+- Standard_Chart_x / Standard_Chart_y は単一のデフォルトチャートとして扱われます。
+- region 行や line 行は不要です（あっても分岐には使いません）。
+
+
+5. ブロック例（TRUE）
+--------------------
+sheet,4LW 持続圧
+condition,0.2,0.05,TRUE
+brightness,0,1.0
+brightness,1,0.8
+...
+line,0,-0.2,77.0
+line,1,-0.2,67.0
+...
+region,A
+Standard_Chart_x,0.0406,0.04178,...
+Standard_Chart_y,0.09484,0.09779,...
+region,B
+Standard_Chart_x,...
+Standard_Chart_y,...
+
+
+6. ブロック例（FALSE）
+---------------------
+sheet,HHS
+condition,10.0,2.5,FALSE
+brightness,0,1.3
+brightness,1,1.1
+...
+Standard_Chart_x,2.033,2.088,...
+Standard_Chart_y,0.1831,0.1888,...
+
+
+7. 編集時の注意点
+-----------------
+- kind文字列は正確に記載:
+  - sheet / condition / brightness / line / region / Standard_Chart_x / Standard_Chart_y
+- Standard_Chart_x と Standard_Chart_y の要素数は必ず同じにする。
+- condition 行を先に書いてから chart 行を書く（特に temp_humidity_enabled 判定のため）。
+- 数値欄に空文字を入れない（空文字は float変換エラーの原因）。
+- 感圧紙種別(sheet_type)名は、アプリで使う名称と一致させる。
+- 変更後はアプリ起動時に警告が出ないことを確認する。
+
+
+8. エラー時の挙動
+-----------------
+- CSV利用中に例外が起きると、アプリは警告を出して内蔵ハードコード処理にフォールバックします。
+- そのため、CSV編集後は必ず代表ケースで動作確認してください。
+
