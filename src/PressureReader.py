@@ -1970,29 +1970,117 @@ def calculate_brightness(start_x, start_y, end_x, end_y, value_key, polygon_poin
                 results = []
                 total_pixels = roi.shape[0] * roi.shape[1]
                 min_region_size = total_pixels * 0.07
+                brightest_min_region_size = total_pixels * 0.02
+                upper_gain_brightest = 0.10
+                component_candidates = []
+                prefilter_candidates = []
                 
                 for i in range(1, num_labels):
                     region_mask = (labels == i)
                     region_size = np.sum(region_mask)
-                    if region_size < min_region_size:
-                        continue
-                
+                 
                     region_values = roi[region_mask]
                     if region_values.size == 0:
                         continue
-                
-                    mean_initial = np.mean(region_values)
+
+                    mean_initial = float(np.mean(region_values))
+                    prefilter_candidates.append(
+                        {
+                            "region_size": int(region_size),
+                            "region_values": region_values,
+                            "mean_initial": mean_initial,
+                            "p99_nonwhite": None,
+                        }
+                    )
+
+                brightest_prefilter_index = None
+                if prefilter_candidates:
+                    valid_p99_indices = []
+                    for idx, candidate in enumerate(prefilter_candidates):
+                        nonwhite_pixels = candidate["region_values"][candidate["region_values"] < 255]
+                        if nonwhite_pixels.size > 0:
+                            candidate["p99_nonwhite"] = float(np.percentile(nonwhite_pixels, 99))
+                            valid_p99_indices.append(idx)
+
+                    if valid_p99_indices:
+                        selected_by = "p99_nonwhite"
+                        brightest_prefilter_index = max(
+                            valid_p99_indices,
+                            key=lambda idx: prefilter_candidates[idx]["p99_nonwhite"],
+                        )
+                    else:
+                        selected_by = "mean_fallback"
+                        brightest_prefilter_index = max(
+                            range(len(prefilter_candidates)),
+                            key=lambda idx: prefilter_candidates[idx]["mean_initial"],
+                        )
+
+                    selected_candidate = prefilter_candidates[brightest_prefilter_index]
+                    p99_text = "None"
+                    if selected_candidate["p99_nonwhite"] is not None:
+                        p99_text = f"{selected_candidate['p99_nonwhite']:.2f}"
+                    print(
+                        f"[DEBUG] swatch brightest selector: selected_by={selected_by} "
+                        f"mean_initial={selected_candidate['mean_initial']:.2f} p99_nonwhite={p99_text}"
+                    )
+
+                for idx, pre_candidate in enumerate(prefilter_candidates):
+                    mean_initial = pre_candidate["mean_initial"]
                     lower = mean_initial * (1 - 0.7)
-                    upper = mean_initial * (1 + 0.0)
-                
-                    filtered = region_values[(region_values >= lower) & (region_values <= upper)]
+                    upper_gain = upper_gain_brightest if idx == brightest_prefilter_index else 0.0
+                    upper = mean_initial * (1 + upper_gain)
+                    filtered = pre_candidate["region_values"][
+                        (pre_candidate["region_values"] >= lower) & (pre_candidate["region_values"] <= upper)
+                    ]
                     if filtered.size == 0:
                         continue
-                
+                 
                     mean_final = np.mean(filtered)
                     min_final = np.min(filtered)
                     max_final = np.max(filtered)
-                    results.append((region_size, mean_final, min_final, max_final))
+
+                    component_candidates.append(
+                        {
+                            "region_size": pre_candidate["region_size"],
+                            "mean_final": float(mean_final),
+                            "min_final": float(min_final),
+                            "max_final": float(max_final),
+                            "from_brightest_prefilter": idx == brightest_prefilter_index,
+                        }
+                    )
+
+                if component_candidates:
+                    flagged_indices = [
+                        idx for idx, candidate in enumerate(component_candidates)
+                        if candidate.get("from_brightest_prefilter", False)
+                    ]
+                    if flagged_indices:
+                        brightest_index = flagged_indices[0]
+                    else:
+                        brightest_index = max(
+                            range(len(component_candidates)),
+                            key=lambda idx: component_candidates[idx]["mean_final"],
+                        )
+                    brightest_candidate = component_candidates[brightest_index]
+                    brightest_adopted = brightest_candidate["region_size"] >= brightest_min_region_size
+                    print(
+                        f"[DEBUG] swatch brightest region check: "
+                        f"size={brightest_candidate['region_size']} "
+                        f"threshold={brightest_min_region_size:.1f} adopted={brightest_adopted} "
+                        f"upper_gain_brightest={upper_gain_brightest:.2f}"
+                    )
+                    for idx, candidate in enumerate(component_candidates):
+                        required_size = brightest_min_region_size if idx == brightest_index else min_region_size
+                        if candidate["region_size"] < required_size:
+                            continue
+                        results.append(
+                            (
+                                candidate["region_size"],
+                                candidate["mean_final"],
+                                candidate["min_final"],
+                                candidate["max_final"],
+                            )
+                        )
                 
                 # 出力とエントリーへの記入処理
                 avg_list = [avg for _, avg, _, _ in results]
@@ -2000,6 +2088,25 @@ def calculate_brightness(start_x, start_y, end_x, end_y, value_key, polygon_poin
                 active_slots = get_active_brightness_slots()
                 active_slot_count = len(active_slots)
                 active_keys = [value_key for value_key, _, _ in active_slots]
+
+                # 最明度キーのみ救済再抽出:
+                # 通常抽出(<=250)で末尾キーが不足する場合、251..254 の高明度帯から実測値を補完する。
+                if active_slot_count > 0 and len(avg_list) < active_slot_count:
+                    brightest_key = active_keys[-1]
+                    missing_from_brightest = len(avg_list) <= (active_slot_count - 1)
+                    if missing_from_brightest:
+                        rescue_pixels = roi[(roi >= 251) & (roi <= 254)]
+                        if rescue_pixels.size > 0:
+                            rescue_value = float(np.percentile(rescue_pixels, 99))
+                            rescue_min = float(np.min(rescue_pixels))
+                            rescue_max = float(np.max(rescue_pixels))
+                            avg_list.append(rescue_value)
+                            bounds_list.append((rescue_min, rescue_max))
+                            print(
+                                f"[DEBUG] swatch brightest rescue: key={format_brightness_key(brightest_key)} "
+                                f"value={rescue_value:.2f} source=251..254"
+                            )
+
                 if avg_list:
                     avg_text = ", ".join(f"{v:.2f}" for v in avg_list)
                 else:
