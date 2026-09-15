@@ -1,0 +1,52 @@
+PressureReader.exe ビルド手順（再利用用）
+
+最終更新: 2026-09-15
+
+1. 前提
+- プロジェクトルート: C:\nagasaka\AI\PressureReader\Project01
+- 使用Python:
+  C:\nagasaka\python\testPressR\Scripts\python.exe
+- 依存ツール:
+  - pyinstaller
+  - build_hooks/pre_find_module_path/hook-tkinter.py が存在すること
+
+2. 通常版（GUI）exe の作成
+PowerShellで以下を実行:
+
+  cd C:\nagasaka\AI\PressureReader\Project01
+  powershell -ExecutionPolicy Bypass -File .\scripts\build_pressure_reader_exe.ps1
+
+出力:
+  dist\PressureReader.exe
+
+3. デバッグ版（コンソールあり）exe の作成
+PowerShellで以下を実行:
+
+  cd C:\nagasaka\AI\PressureReader\Project01
+  powershell -ExecutionPolicy Bypass -File .\scripts\build_pressure_reader_exe.ps1 -DebugConsole
+
+出力:
+  dist\PressureReader_debug.exe
+
+4. 本ビルドで同梱される要素
+- src\pr_images
+- src\config
+- src\poppler
+- Tcl/Tk データ（_tcl_data, _tk_data）
+- onefile実行時の展開先を .\_pressure_tmp に固定
+
+5. tkinterエラー回避の要点
+- build_hooks/pre_find_module_path/hook-tkinter.py により、
+  PyInstallerの tkinter 除外誤判定を回避している。
+- 上記フックを削除・改変すると
+  「No module named 'tkinter'」が再発する可能性がある。
+
+6. よくある確認ポイント
+- exeが生成されない場合:
+  - Pythonパスが正しいか
+  - pyinstallerがインストール済みか
+  - build_hooks\pre_find_module_path\hook-tkinter.py が存在するか
+- 実行時エラーが出る場合:
+  - dist\PressureReader.exe を最新で作り直したか
+  - 旧exeを別フォルダから起動していないか
+

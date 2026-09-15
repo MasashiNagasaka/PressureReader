@@ -14,6 +14,7 @@ import sys
 import atexit
 import shutil
 import uuid
+import subprocess
 from scipy.interpolate import interp1d
 import math
 import pyautogui
@@ -84,14 +85,23 @@ screen_width, screen_height = pyautogui.size()
 
 # 実行ファイル化された場合の処理
 if getattr(sys, 'frozen', False):  # 実行ファイル化された場合
-    # exeファイルがあるディレクトリのパスを取得
+    # exeファイルがあるディレクトリ（書き込み用）
     PR_dir = os.path.dirname(sys.executable)
+    # onefile展開先（同梱リソース参照用）
+    RESOURCE_dir = getattr(sys, "_MEIPASS", PR_dir)
 else:
-    # スクリプトが実行されているディレクトリのパスを取得
+    # スクリプトが実行されているディレクトリ
     PR_dir = os.path.dirname(__file__)
-ima_path = os.path.join(PR_dir, "pr_images")
+    RESOURCE_dir = PR_dir
+
+# onefile実行時のTk参照先を明示（PyInstaller環境差異対策）
+if getattr(sys, 'frozen', False):
+    tcl_root = os.path.join(RESOURCE_dir, "tcl")
+    os.environ.setdefault("TCL_LIBRARY", os.path.join(tcl_root, "tcl8.6"))
+    os.environ.setdefault("TK_LIBRARY", os.path.join(tcl_root, "tk8.6"))
+ima_path = os.path.join(RESOURCE_dir, "pr_images")
 tmp_dir = os.path.join(PR_dir, "_pressure_tmp")
-sheet_setting_path = os.path.join(PR_dir, "config", "sheet_setting.csv")
+sheet_setting_path = os.path.join(RESOURCE_dir, "config", "sheet_setting.csv")
 sheet_setting_config = {}
 sheet_setting_load_error = None
 sheet_setting_error_shown = False
@@ -127,6 +137,24 @@ def cleanup_temp_pngs():
             os.rmdir(tmp_dir)
     except OSError as e:
         print(f"[WARN] Failed to remove tmp dir: {tmp_dir} ({e})")
+
+
+def schedule_cleanup_tmp_dir_after_exit():
+    if not getattr(sys, 'frozen', False):
+        return
+    tmp_abs = os.path.abspath(tmp_dir)
+    expected_tmp_dir = os.path.abspath(os.path.join(PR_dir, "_pressure_tmp"))
+    if tmp_abs != expected_tmp_dir:
+        return
+    # Bootloader側の後片付け完了後に、空フォルダだけ削除する
+    cmd = f'ping 127.0.0.1 -n 3 > nul & rmdir "{tmp_abs}" 2>nul'
+    try:
+        subprocess.Popen(
+            ["cmd", "/c", cmd],
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+    except OSError as e:
+        print(f"[WARN] Failed to schedule tmp dir cleanup: {tmp_abs} ({e})")
 
 
 def _parse_bool_text(value_text):
@@ -536,6 +564,9 @@ def c2p(brightness):
         sheet_setting_error_shown = True
         messagebox.showwarning("設定読み込み警告", message)
 
+    class BrightnessInputError(ValueError):
+        pass
+
     sheet_type = selected_var.get()
 
     if sheet_type not in sheet_setting_config:
@@ -588,7 +619,7 @@ def c2p(brightness):
                 raise ValueError(f"{sheet_type}: brightness key {key} is unsupported")
             value_text = entry.get().strip()
             if value_text == "":
-                raise ValueError(f"{sheet_type}: brightness {key} is empty")
+                raise BrightnessInputError(f"{sheet_type}: brightness {key} is empty")
             before_values.append(float(value_text))
 
         if brightness < before_values[0]:
@@ -647,6 +678,10 @@ def c2p(brightness):
                 return press_Min - 0.1
             else:
                 return -9999
+    except BrightnessInputError as e:
+        # 入力不足は読取失敗として扱い、CSV設定エラー警告は表示しない
+        print(f"[WARN] brightness input required: {e}")
+        return -9999
     except Exception as e:
         warn_message = f"sheet_setting.csv の設定利用に失敗したため、圧力変換を実行できません。\n{e}"
         warn_sheet_setting_once(warn_message)
@@ -1309,9 +1344,10 @@ def get_circle_size_display_text():
 
 # 標準色見本処理 ボタン**********************************************************************************************
 
-def insert_to_visible_entries(avg_list, bounds_list=None):
+def insert_to_visible_entries(avg_list, bounds_list=None, debug_failed_observed_values=None):
     global current_value, swatch_brightness_bounds
     active_slots = get_active_brightness_slots()
+    failed_keys = []
 
     # 明度値を内部エントリーへ保持し、状態表示を更新
     for i, (value_key, entry, _) in enumerate(active_slots):
@@ -1330,7 +1366,23 @@ def insert_to_visible_entries(avg_list, bounds_list=None):
             entry.insert(0, "")
             set_brightness_status(value_key, "failed")
             swatch_brightness_bounds.pop(value_key, None)
-            print(f"[DEBUG] swatch brightness {format_brightness_key(value_key)} = None (failed)")
+            failed_keys.append(format_brightness_key(value_key))
+            observed_value = None
+            if debug_failed_observed_values is not None:
+                observed_value = debug_failed_observed_values.get(value_key)
+            if observed_value is not None:
+                print(
+                    f"[DEBUG] swatch brightness {format_brightness_key(value_key)} = "
+                    f"{float(observed_value):.2f} (failed-observed-pctl)"
+                )
+            else:
+                print(
+                    f"[DEBUG] swatch brightness {format_brightness_key(value_key)} = "
+                    f"0.00 (failed-observed-empty)"
+                )
+
+    if failed_keys:
+        print(f"[DEBUG] swatch missing brightness keys: {', '.join(failed_keys)}")
 
 #ボタン設置
 def on_enter_iromihon(event):
@@ -1945,7 +1997,39 @@ def calculate_brightness(start_x, start_y, end_x, end_y, value_key, polygon_poin
                 # 出力とエントリーへの記入処理
                 avg_list = [avg for _, avg, _, _ in results]
                 bounds_list = [(min_v, max_v) for _, _, min_v, max_v in results]
-                insert_to_visible_entries(avg_list, bounds_list)
+                active_slots = get_active_brightness_slots()
+                active_slot_count = len(active_slots)
+                active_keys = [value_key for value_key, _, _ in active_slots]
+                if avg_list:
+                    avg_text = ", ".join(f"{v:.2f}" for v in avg_list)
+                else:
+                    avg_text = "(none)"
+                print(f"[DEBUG] swatch detected brightness values: {avg_text}")
+
+                candidate_pixels_raw = roi
+                debug_failed_observed_values = {}
+                if candidate_pixels_raw.size > 0 and active_slot_count > 0:
+                    if active_slot_count == 1:
+                        debug_failed_observed_values[active_keys[0]] = float(np.percentile(candidate_pixels_raw, 50))
+                    else:
+                        for idx, key in enumerate(active_keys):
+                            percentile = 100.0 * idx / (active_slot_count - 1)
+                            debug_failed_observed_values[key] = float(np.percentile(candidate_pixels_raw, percentile))
+
+                if len(avg_list) < active_slot_count:
+                    roi_min = float(np.min(roi))
+                    roi_max = float(np.max(roi))
+                    roi_mean = float(np.mean(roi))
+                    print(
+                        f"[DEBUG] swatch failure roi stats: "
+                        f"min={roi_min:.2f} max={roi_max:.2f} mean={roi_mean:.2f} "
+                        f"detected={len(avg_list)}/{active_slot_count}"
+                    )
+                insert_to_visible_entries(
+                    avg_list,
+                    bounds_list,
+                    debug_failed_observed_values=debug_failed_observed_values,
+                )
 
                 # value_key=="14" 後は、部分設定でも通常モードへ戻す
                 if len(avg_list) > 0:
@@ -2801,9 +2885,10 @@ def pdf_to_png():
         for pdf_path in pdf_paths:
             any_path = os.path.dirname(pdf_path)
             
-            # if hasattr(sys, 'nuitka_compiled'):  # exe版
-            base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-            poppler_path = os.path.join(base_dir, 'poppler', 'Library', 'bin')
+            poppler_path = os.path.join(RESOURCE_dir, 'poppler', 'Library', 'bin')
+            if not os.path.isdir(poppler_path):
+                fallback_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+                poppler_path = os.path.join(fallback_dir, 'poppler', 'Library', 'bin')
             try: # Popplerを明示的に指定してPDFを画像に変換
                 images = convert_from_path(pdf_path, dpi=p2p_dpi, poppler_path=poppler_path)
                 save_images_as_png(images, pdf_path, any_path)  # PDFファイルと同じ場所に保存する
@@ -3738,6 +3823,7 @@ canvas.bind("<Configure>", resize_image)
 
 def on_app_close():
     cleanup_temp_pngs()
+    schedule_cleanup_tmp_dir_after_exit()
     root.destroy()
 
 
