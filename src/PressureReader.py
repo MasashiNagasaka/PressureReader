@@ -90,6 +90,10 @@ else:
     PR_dir = os.path.dirname(__file__)
 ima_path = os.path.join(PR_dir, "pr_images")
 tmp_dir = os.path.join(PR_dir, "_pressure_tmp")
+sheet_setting_path = os.path.join(PR_dir, "config", "sheet_setting.csv")
+sheet_setting_config = {}
+sheet_setting_load_error = None
+sheet_setting_error_shown = False
 
 
 def is_path_in_dir(path, base_dir):
@@ -124,8 +128,172 @@ def cleanup_temp_pngs():
         print(f"[WARN] Failed to remove tmp dir: {tmp_dir} ({e})")
 
 
+def _parse_bool_text(value_text):
+    text = str(value_text).strip().lower()
+    if text in ("true", "1"):
+        return True
+    if text in ("false", "0"):
+        return False
+    raise ValueError(f"Invalid boolean text: {value_text}")
+
+
+def _parse_float_list(tokens):
+    values = []
+    for token in tokens:
+        token_text = str(token).strip()
+        if token_text == "":
+            continue
+        values.append(float(token_text))
+    return values
+
+
+def load_sheet_setting_config():
+    config = {}
+    current_sheet = None
+    current_region = None
+
+    if not os.path.isfile(sheet_setting_path):
+        raise FileNotFoundError(f"sheet setting csv not found: {sheet_setting_path}")
+
+    rows = None
+    decode_error = None
+    for encoding in ("utf-8-sig", "cp932"):
+        try:
+            with open(sheet_setting_path, "r", encoding=encoding, newline="") as f:
+                rows = list(csv.reader(f))
+            break
+        except UnicodeDecodeError as e:
+            decode_error = e
+
+    if rows is None:
+        raise decode_error if decode_error is not None else RuntimeError("failed to read sheet setting csv")
+
+    for row_no, row in enumerate(rows, start=1):
+        if not row:
+            continue
+
+        row = [cell.strip() for cell in row]
+        kind = row[0]
+        if kind == "":
+            continue
+
+        if kind == "sheet":
+            if len(row) < 2 or row[1] == "":
+                raise ValueError(f"row {row_no}: sheet type is empty")
+            current_sheet = row[1]
+            current_region = None
+            config[current_sheet] = {
+                "press_max": None,
+                "press_min": None,
+                "temp_humidity_enabled": None,
+                "brightness": [],
+                "lines": [],
+                "regions": [],
+                "charts": {},
+            }
+            continue
+
+        if current_sheet is None:
+            raise ValueError(f"row {row_no}: data row before sheet row")
+
+        item = config[current_sheet]
+
+        if kind == "condition":
+            if len(row) < 4:
+                raise ValueError(f"row {row_no}: condition requires 3 values")
+            item["press_max"] = float(row[1])
+            item["press_min"] = float(row[2])
+            item["temp_humidity_enabled"] = _parse_bool_text(row[3])
+        elif kind == "brightness":
+            if len(row) < 3:
+                raise ValueError(f"row {row_no}: brightness requires seq/value")
+            item["brightness"].append((int(row[1]), float(row[2])))
+        elif kind == "line":
+            if len(row) < 4:
+                raise ValueError(f"row {row_no}: line requires seq/m/b")
+            item["lines"].append((int(row[1]), float(row[2]), float(row[3])))
+        elif kind == "region":
+            if len(row) < 2 or row[1] == "":
+                raise ValueError(f"row {row_no}: region name is empty")
+            current_region = row[1]
+            item["regions"].append(current_region)
+            item["charts"][current_region] = [[], []]
+        elif kind == "Standard_Chart_x":
+            values = _parse_float_list(row[1:])
+            if item["temp_humidity_enabled"] is False:
+                chart = item["charts"].setdefault("_DEFAULT_", [[], []])
+                chart[0] = values
+            else:
+                if current_region is None:
+                    raise ValueError(f"row {row_no}: Standard_Chart_x before region")
+                item["charts"][current_region][0] = values
+        elif kind == "Standard_Chart_y":
+            values = _parse_float_list(row[1:])
+            if item["temp_humidity_enabled"] is False:
+                chart = item["charts"].setdefault("_DEFAULT_", [[], []])
+                chart[1] = values
+            else:
+                if current_region is None:
+                    raise ValueError(f"row {row_no}: Standard_Chart_y before region")
+                item["charts"][current_region][1] = values
+        else:
+            raise ValueError(f"row {row_no}: unknown record type {kind}")
+
+    # Validate and normalize
+    for sheet_type, item in config.items():
+        if item["press_max"] is None or item["press_min"] is None:
+            raise ValueError(f"{sheet_type}: condition is missing")
+        if item["temp_humidity_enabled"] is None:
+            raise ValueError(f"{sheet_type}: temp_humidity_enabled is missing")
+        if len(item["brightness"]) == 0:
+            raise ValueError(f"{sheet_type}: brightness is missing")
+
+        item["brightness"].sort(key=lambda t: t[0])
+        brightness_indices = [idx for idx, _ in item["brightness"]]
+        if brightness_indices != list(range(len(item["brightness"]))):
+            raise ValueError(f"{sheet_type}: brightness seq is not contiguous")
+        item["brightness"] = [val for _, val in item["brightness"]]
+
+        item["lines"].sort(key=lambda t: t[0])
+        line_indices = [idx for idx, _, _ in item["lines"]]
+        if len(line_indices) > 0 and line_indices != list(range(len(line_indices))):
+            raise ValueError(f"{sheet_type}: line seq is not contiguous")
+        item["lines"] = [(m, b) for _, m, b in item["lines"]]
+
+        if item["temp_humidity_enabled"]:
+            if len(item["regions"]) == 0:
+                raise ValueError(f"{sheet_type}: regions are missing")
+            if len(item["lines"]) + 1 != len(item["regions"]):
+                raise ValueError(f"{sheet_type}: line/region count mismatch")
+            for region_name in item["regions"]:
+                if region_name not in item["charts"]:
+                    raise ValueError(f"{sheet_type}: chart for region {region_name} is missing")
+                xs, ys = item["charts"][region_name]
+                if len(xs) == 0 or len(ys) == 0:
+                    raise ValueError(f"{sheet_type}: chart values for region {region_name} are empty")
+                if len(xs) != len(ys):
+                    raise ValueError(f"{sheet_type}: chart x/y count mismatch for region {region_name}")
+                item["charts"][region_name] = (np.array(xs), np.array(ys))
+        else:
+            if "_DEFAULT_" not in item["charts"]:
+                raise ValueError(f"{sheet_type}: default chart is missing")
+            xs, ys = item["charts"]["_DEFAULT_"]
+            if len(xs) == 0 or len(ys) == 0:
+                raise ValueError(f"{sheet_type}: default chart values are empty")
+            if len(xs) != len(ys):
+                raise ValueError(f"{sheet_type}: default chart x/y count mismatch")
+            item["charts"]["_DEFAULT_"] = (np.array(xs), np.array(ys))
+
+    return config
+
+
 cleanup_temp_pngs()
 atexit.register(cleanup_temp_pngs)
+try:
+    sheet_setting_config = load_sheet_setting_config()
+except Exception as e:
+    sheet_setting_load_error = str(e)
+    print(f"[WARN] failed to load sheet setting csv: {e}")
 
 
 
@@ -342,7 +510,7 @@ def update_canvas_image():
 def c2p(brightness):
     global brightness_entry_15, brightness_entry_13, brightness_entry_11, brightness_entry_10, brightness_entry_09, brightness_entry_08, brightness_entry_07, \
     brightness_entry_06, brightness_entry_05, brightness_entry_04, brightness_entry_03, brightness_entry_02, brightness_entry_01, \
-    press_Max, press_Min, bri_Max, bri_Min, white_flag, white_Press, white_Value2
+    press_Max, press_Min, bri_Max, bri_Min, white_flag, white_Press, white_Value2, sheet_setting_error_shown
     
 
     def calculate_brightness(press_value, forward_interp, before_values, after_values):
@@ -360,8 +528,109 @@ def c2p(brightness):
             y0, y1 = after_values[index], after_values[index + 1]
             x0, x1 = before_values[index], before_values[index + 1]
         return x0 + (result_recal - y0) * ((x1 - x0) / (y1 - y0))
-    
-    
+
+    sheet_type = selected_var.get()
+    if sheet_type in sheet_setting_config:
+        try:
+            item = sheet_setting_config[sheet_type]
+            entry_by_key = {
+                "15": brightness_entry_15,
+                "13": brightness_entry_13,
+                "11": brightness_entry_11,
+                "10": brightness_entry_10,
+                "09": brightness_entry_09,
+                "08": brightness_entry_08,
+                "07": brightness_entry_07,
+                "06": brightness_entry_06,
+                "05": brightness_entry_05,
+                "04": brightness_entry_04,
+                "03": brightness_entry_03,
+                "02": brightness_entry_02,
+                "01": brightness_entry_01,
+            }
+
+            after_values = list(item["brightness"])
+            if len(after_values) < 2:
+                raise ValueError(f"{sheet_type}: brightness count is less than 2")
+
+            active_keys = get_active_brightness_keys(sheet_type)
+            if len(active_keys) != len(after_values):
+                raise ValueError(
+                    f"{sheet_type}: brightness count mismatch (csv={len(after_values)}, active={len(active_keys)})"
+                )
+
+            before_values = []
+            for key in active_keys:
+                entry = entry_by_key.get(key)
+                if entry is None:
+                    raise ValueError(f"{sheet_type}: brightness key {key} is unsupported")
+                value_text = entry.get().strip()
+                if value_text == "":
+                    raise ValueError(f"{sheet_type}: brightness {key} is empty")
+                before_values.append(float(value_text))
+
+            if brightness < before_values[0]:
+                x0, x1 = before_values[0], before_values[1]
+                y0, y1 = after_values[0], after_values[1]
+                result = y0 + (y1 - y0) * ((brightness - x0) / (x1 - x0))
+            elif brightness > before_values[-1]:
+                x0, x1 = before_values[-2], before_values[-1]
+                y0, y1 = after_values[-2], after_values[-1]
+                result = y0 + (y1 - y0) * ((brightness - x0) / (x1 - x0))
+            else:
+                index = np.searchsorted(before_values, brightness, side='right') - 1
+                if index >= len(before_values) - 1:
+                    index = len(before_values) - 2
+                x0, x1 = before_values[index], before_values[index + 1]
+                y0, y1 = after_values[index], after_values[index + 1]
+                result = y0 + (y1 - y0) * ((brightness - x0) / (x1 - x0))
+
+            if item["temp_humidity_enabled"]:
+                ondo_text = ondo_entry.get().strip()
+                shitsudo_text = shitsudo_entry.get().strip()
+                if ondo_text == "" or shitsudo_text == "":
+                    return -9999
+                x, y = float(ondo_text), float(shitsudo_text)
+                lines = item["lines"]
+                regions = item["regions"]
+                for i, (m, b) in enumerate(lines):
+                    y_line = m * x + b
+                    if y > y_line:
+                        region = regions[i]
+                        break
+                else:
+                    region = regions[-1]
+                Standard_Chart_x, Standard_Chart_y = item["charts"][region]
+            else:
+                Standard_Chart_x, Standard_Chart_y = item["charts"]["_DEFAULT_"]
+
+            inverse_interp = interp1d(Standard_Chart_y, Standard_Chart_x, kind='linear', bounds_error=False, fill_value="extrapolate")
+            Press_value = inverse_interp(result)
+
+            press_Max = float(item["press_max"])
+            press_Min = float(item["press_min"])
+            forward_interp = interp1d(Standard_Chart_x, Standard_Chart_y, kind='linear', bounds_error=False, fill_value="extrapolate")
+            bri_Max = calculate_brightness(press_Max, forward_interp, before_values, after_values)
+            bri_Min = calculate_brightness(press_Min, forward_interp, before_values, after_values)
+
+            if Press_value > press_Max:
+                return press_Max + 0.1
+            elif Press_value <= press_Max and Press_value >= press_Min:
+                return Press_value
+            elif Press_value < press_Min:
+                if white_flag == True:
+                    white_flag = False
+                    return Press_value
+                elif Press_value > white_Press:
+                    return press_Min - 0.1
+                else:
+                    return -9999
+        except Exception as e:
+            if not sheet_setting_error_shown:
+                sheet_setting_error_shown = True
+                messagebox.showwarning("設定読み込み警告", f"sheet_setting.csv の設定利用に失敗したため、内蔵設定にフォールバックします。\n{e}")
+            print(f"[WARN] csv config fallback: {e}")
+
     if selected_var.get() == "4LW 持続圧":
     # 標準色チャート補間
         before_values = [float(brightness_entry_10.get()), float(brightness_entry_08.get()), float(brightness_entry_06.get()), float(brightness_entry_04.get()), float(brightness_entry_02.get()), float(brightness_entry_01.get())]
