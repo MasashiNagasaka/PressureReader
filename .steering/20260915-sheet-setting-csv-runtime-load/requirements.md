@@ -1,11 +1,12 @@
 # Requirements
 
 ## Goal
-- `src/config/sheet_setting.csv` を起動時に1回読み込み、`c2p()` の圧力変換で優先利用する。
+- `src/config/sheet_setting.csv` を起動時に1回読み込み、`c2p()` の圧力変換で必須利用する。
 
 ## Functional Requirements
 - CSVに設定がある感圧紙は、`c2p()` でCSV設定を使って計算する。
-- CSVの読み込みまたは利用に失敗した場合は、既存の内蔵ハードコード処理へフォールバックする。
+- CSVの読み込みまたは利用に失敗した場合は、警告を1回表示し `-9999` を返す。
+- 選択中の感圧紙がCSV未定義の場合は、警告を1回表示し `-9999` を返す。
 - 既存の白判定・範囲外判定の戻り値仕様は維持する。
 
 ## Non-Functional Requirements
