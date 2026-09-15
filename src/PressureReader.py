@@ -61,6 +61,7 @@ dragging = False
 reset_confirm_open = False
 image_switch_confirm_open = False
 suppress_sheet_type_reset = False
+contact_info_window = None
 
 # 多角形選択モード用
 polygon_points = []
@@ -4611,6 +4612,184 @@ button_reset_window.image = icon15
 button_reset_window.grid(row=34, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_reset_window.bind("<Enter>", on_enter_reset_window)
 button_reset_window.bind("<Leave>", on_leave_reset_window)
+
+def show_contact_info():
+    global contact_info_window
+
+    if contact_info_window is not None and contact_info_window.winfo_exists():
+        contact_info_window.lift()
+        contact_info_window.focus_force()
+        return
+
+    app_mail = "masashi_nagasaka_zd@mail.toyota.co.jp"
+    consultation_mail = "kota_suzuki_ab@mail.toyota.co.jp"
+
+    contact_info_window = tk.Toplevel(root)
+    contact_info_window.title("問い合わせ先")
+    contact_info_window.configure(bg="#f4f7fb")
+    contact_info_window.resizable(False, False)
+    contact_info_window.transient(root)
+
+    dialog_width = int(760 * (screen_height / 1080))
+    dialog_height = int(470 * (screen_height / 1080))
+    window_x = root.winfo_rootx() + max(0, (root.winfo_width() - dialog_width) // 2)
+    window_y = root.winfo_rooty() + max(0, (root.winfo_height() - dialog_height) // 2)
+    contact_info_window.geometry(f"{dialog_width}x{dialog_height}+{window_x}+{window_y}")
+
+    def close_contact_window():
+        global contact_info_window
+        if contact_info_window is not None and contact_info_window.winfo_exists():
+            contact_info_window.destroy()
+        contact_info_window = None
+
+    def copy_mail_to_clipboard(mail_text):
+        root.clipboard_clear()
+        root.clipboard_append(mail_text)
+        root.update()
+        messagebox.showinfo("コピー完了", f"{mail_text}\nをコピーしました。", parent=contact_info_window)
+
+    header_label = tk.Label(
+        contact_info_window,
+        text="問い合わせ先",
+        bg="#1f3a5f",
+        fg="#ffffff",
+        font=("Meiryo ui", 14, "bold"),
+        anchor="w",
+        padx=12,
+    )
+    header_label.pack(fill=tk.X, pady=(0, 10))
+
+    body_frame = tk.Frame(contact_info_window, bg="#f4f7fb")
+    body_frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=(0, 8))
+
+    content_frame = tk.Frame(body_frame, bg="#ffffff", relief="solid", borderwidth=1)
+    content_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 12))
+
+    inner_frame = tk.Frame(content_frame, bg="#ffffff")
+    inner_frame.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+
+    title_label = tk.Label(
+        inner_frame,
+        text="■アプリ問い合わせ先",
+        bg="#ffffff",
+        fg="#1f2d3d",
+        font=("Meiryo ui", 11, "bold"),
+        anchor="w",
+    )
+    title_label.pack(fill=tk.X)
+
+    subtitle_label = tk.Label(
+        inner_frame,
+        text="メールまたはTeamsにてご連絡下さい。",
+        bg="#ffffff",
+        fg="#1f2d3d",
+        font=("Meiryo ui", 11),
+        anchor="w",
+    )
+    subtitle_label.pack(fill=tk.X, pady=(2, 10))
+
+    app_block = tk.Frame(inner_frame, bg="#ffffff")
+    app_block.pack(fill=tk.X, pady=(0, 10))
+
+    app_dept_label = tk.Label(
+        app_block,
+        text="計測・デジタル基盤改革部",
+        bg="#ffffff",
+        fg="#1f2d3d",
+        font=("Meiryo ui", 11),
+        anchor="w",
+    )
+    app_dept_label.grid(row=0, column=0, columnspan=2, sticky="w")
+
+    app_kind_label = tk.Label(
+        app_block,
+        text="アプリについて",
+        bg="#ffffff",
+        fg="#1f2d3d",
+        font=("Meiryo ui", 11),
+        anchor="w",
+    )
+    app_kind_label.grid(row=1, column=0, columnspan=2, sticky="w")
+
+    app_person_label = tk.Label(
+        app_block,
+        text="　電動化デジタル開発室 Nagasaka, Masashi/長坂 政史",
+        bg="#ffffff",
+        fg="#1f2d3d",
+        font=("Meiryo ui", 11),
+        anchor="w",
+    )
+    app_person_label.grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, 2))
+
+    app_mail_label = tk.Label(
+        app_block,
+        text=f"　mail：{app_mail}",
+        bg="#ffffff",
+        fg="#1f2d3d",
+        font=("Meiryo ui", 11),
+        anchor="w",
+    )
+    app_mail_label.grid(row=3, column=0, sticky="w")
+    app_copy_button = ttk.Button(
+        app_block,
+        text="コピー",
+        width=8,
+        command=lambda: copy_mail_to_clipboard(app_mail),
+    )
+    app_copy_button.grid(row=3, column=1, sticky="w", padx=(8, 0))
+
+    consultation_block = tk.Frame(inner_frame, bg="#ffffff")
+    consultation_block.pack(fill=tk.X)
+
+    consultation_title_label = tk.Label(
+        consultation_block,
+        text="計測相談・依頼",
+        bg="#ffffff",
+        fg="#1f2d3d",
+        font=("Meiryo ui", 11),
+        anchor="w",
+    )
+    consultation_title_label.grid(row=0, column=0, columnspan=2, sticky="w")
+
+    consultation_person_label = tk.Label(
+        consultation_block,
+        text="　計測・デジタル課 Suzuki, Kota/鈴木 宏太",
+        bg="#ffffff",
+        fg="#1f2d3d",
+        font=("Meiryo ui", 11),
+        anchor="w",
+    )
+    consultation_person_label.grid(row=1, column=0, columnspan=2, sticky="w", pady=(0, 2))
+
+    consultation_mail_label = tk.Label(
+        consultation_block,
+        text=f"　mail：{consultation_mail}",
+        bg="#ffffff",
+        fg="#1f2d3d",
+        font=("Meiryo ui", 11),
+        anchor="w",
+    )
+    consultation_mail_label.grid(row=2, column=0, sticky="w")
+    consultation_copy_button = ttk.Button(
+        consultation_block,
+        text="コピー",
+        width=8,
+        command=lambda: copy_mail_to_clipboard(consultation_mail),
+    )
+    consultation_copy_button.grid(row=2, column=1, sticky="w", padx=(8, 0))
+
+    close_button = ttk.Button(body_frame, text="閉じる", width=10, command=close_contact_window)
+    close_button.pack(anchor="e", pady=(14, 0))
+
+    contact_info_window.protocol("WM_DELETE_WINDOW", close_contact_window)
+    contact_info_window.focus_force()
+
+
+label_contact = ttk.Label(button_frame, text="お問い合わせ：", style="Custom.TLabel")
+label_contact.grid(row=35, column=0, columnspan=4, padx=(5, 0), pady=(10, 0), sticky=tk.W)
+
+button_contact = ttk.Button(button_frame, text="問い合わせ先", width=24, command=show_contact_info)
+button_contact.grid(row=36, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 
 # 「解析条件をコピー」は自然幅のまま維持し、
 # 「画面リセット」だけを実表示幅で合わせる。

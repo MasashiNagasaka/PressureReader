@@ -1,0 +1,16 @@
+
+ご要望の標準チャートがありましたので、以下に保存されているフォルダを共有致します。
+MS,HSの標準チャートが保存されているフォルダには、他の種類のものもありました。
+ 
+3LW 持続圧の標準チャート
+　所在　→　\\Aplcaefsst01.caeds.toyota.co.jp\EJ\EJ3_2\07_派遣-出向共有\personal\aikawa\QDQH5124\Downloads
+　ファイル名　→　prescale_3LW.pdf
+MS   瞬間圧/持続圧の標準チャート
+　所在　→　\\Aplcaefsst01.caeds.toyota.co.jp\EJ\EJ3_2\07_派遣-出向共有\personal\aikawa\QDQH5124\Desktop\業務\002_完了形\240729_感圧紙\機能開発室\標準チャート関係
+　ファイル名　→　prescale_MS.pdf
+HS　瞬間圧/持続圧の標準チャート
+　所在　→　\\Aplcaefsst01.caeds.toyota.co.jp\EJ\EJ3_2\07_派遣-出向共有\personal\aikawa\QDQH5124\Desktop\業務\002_完了形\240729_感圧紙\機能開発室\標準チャート関係
+　ファイル名　→　prescale_HS.pdf
+
+3LW 瞬間圧の標準チャート
+\\Aplcaefsst01.caeds.toyota.co.jp\EJ\EJ3_2\07_派遣-出向共有\personal\aikawa\QDQH5124\Desktop\業務\002_完了形\240729_感圧紙\機能開発室\標準チャート関係
