@@ -2089,24 +2089,6 @@ def calculate_brightness(start_x, start_y, end_x, end_y, value_key, polygon_poin
                 active_slot_count = len(active_slots)
                 active_keys = [value_key for value_key, _, _ in active_slots]
 
-                # 最明度キーのみ救済再抽出:
-                # 通常抽出(<=250)で末尾キーが不足する場合、251..254 の高明度帯から実測値を補完する。
-                if active_slot_count > 0 and len(avg_list) < active_slot_count:
-                    brightest_key = active_keys[-1]
-                    missing_from_brightest = len(avg_list) <= (active_slot_count - 1)
-                    if missing_from_brightest:
-                        rescue_pixels = roi[(roi >= 251) & (roi <= 254)]
-                        if rescue_pixels.size > 0:
-                            rescue_value = float(np.percentile(rescue_pixels, 99))
-                            rescue_min = float(np.min(rescue_pixels))
-                            rescue_max = float(np.max(rescue_pixels))
-                            avg_list.append(rescue_value)
-                            bounds_list.append((rescue_min, rescue_max))
-                            print(
-                                f"[DEBUG] swatch brightest rescue: key={format_brightness_key(brightest_key)} "
-                                f"value={rescue_value:.2f} source=251..254"
-                            )
-
                 if avg_list:
                     avg_text = ", ".join(f"{v:.2f}" for v in avg_list)
                 else:
