@@ -3258,6 +3258,16 @@ def load_image(show_sheettype_guidance=False):
             )
             comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
             root.after(8000, comment_label.destroy)
+        else:
+            success_label = tk.Label(
+                root,
+                text=" ファイルを開きました ",
+                fg="white",
+                bg="#c942a5",
+                font=("Meiryo ui", 16, "bold"),
+            )
+            success_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+            root.after(2000, success_label.destroy)
 
     else:
         print("No file selected")
@@ -3696,7 +3706,7 @@ def show_contact_info():
     contact_info_window.transient(root)
 
     dialog_width = int(760 * (screen_height / 1080))
-    dialog_height = int(470 * (screen_height / 1080))
+    dialog_height = max(int(470 * (screen_height / 1080)), 500)
     window_x = root.winfo_rootx() + max(0, (root.winfo_width() - dialog_width) // 2)
     window_y = root.winfo_rooty() + max(0, (root.winfo_height() - dialog_height) // 2)
     contact_info_window.geometry(f"{dialog_width}x{dialog_height}+{window_x}+{window_y}")
@@ -3725,7 +3735,7 @@ def show_contact_info():
     header_label.pack(fill=tk.X, pady=(0, 10))
 
     body_frame = tk.Frame(contact_info_window, bg="#f4f7fb")
-    body_frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=(0, 8))
+    body_frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=(0, 4))
 
     content_frame = tk.Frame(body_frame, bg="#ffffff", relief="solid", borderwidth=1)
     content_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 12))
@@ -3843,8 +3853,11 @@ def show_contact_info():
     )
     consultation_copy_button.grid(row=2, column=1, sticky="w", padx=(8, 0))
 
-    close_button = ttk.Button(body_frame, text="閉じる", width=10, command=close_contact_window)
-    close_button.pack(anchor="e", pady=(14, 0))
+    footer_frame = tk.Frame(contact_info_window, bg="#f4f7fb")
+    footer_frame.pack(fill=tk.X, side=tk.BOTTOM, padx=16, pady=(0, 10))
+
+    close_button = ttk.Button(footer_frame, text="閉じる", width=10, command=close_contact_window)
+    close_button.pack(anchor="e", pady=(6, 0))
 
     contact_info_window.protocol("WM_DELETE_WINDOW", close_contact_window)
     contact_info_window.focus_force()
