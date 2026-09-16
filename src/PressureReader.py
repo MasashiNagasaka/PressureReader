@@ -132,6 +132,11 @@ def cleanup_temp_pngs():
             os.remove(file_path)
         except OSError as e:
             print(f"[WARN] Failed to remove temp PNG: {file_path} ({e})")
+    # onefile実行中は _pressure_tmp 配下に展開実体(_MEIxxxx)が存在するため、
+    # ここで再帰削除すると実行中ファイルと競合する。最終削除は終了後処理に任せる。
+    if getattr(sys, 'frozen', False):
+        return
+
     expected_tmp_dir = os.path.abspath(os.path.join(PR_dir, "_pressure_tmp"))
     if os.path.abspath(tmp_dir) != expected_tmp_dir:
         return
@@ -872,6 +877,8 @@ def set_sheet_type_unselected():
 
 def update_entries_and_buttons(*args):
     global suppress_sheet_type_reset, swatch_brightness_bounds
+    if "all_entries" not in globals() or "all_buttons" not in globals():
+        return
     if not suppress_sheet_type_reset:
         for entry in all_entries:
             entry.delete(0, tk.END)
@@ -976,7 +983,6 @@ def are_all_entries_valid(all_entries, ondo_entry, shitsudo_entry):
 # プレスケール選択欄***********************************************************************************************************************
 selected_var = tk.StringVar(value=SHEET_TYPE_PLACEHOLDER_VALUE)
 # selected_var.set("4LW 持続圧")  # 初期選択
-selected_var.trace("w", update_entries_and_buttons)  # 値変更時にupdate_entriesを呼び出し
 
 
 def clear_detected_value_entries():
@@ -1069,6 +1075,7 @@ brightness_entry_01 = ttk.Entry(button_frame, width=15)
 
 all_entries = [brightness_entry_15, brightness_entry_13, brightness_entry_11, brightness_entry_10, brightness_entry_09, brightness_entry_08, brightness_entry_07, brightness_entry_06, brightness_entry_05, brightness_entry_04, brightness_entry_03, brightness_entry_02, brightness_entry_01]
 all_buttons = [button_mihon_15, button_mihon_13, button_mihon_11, button_mihon_10, button_mihon_09, button_mihon_08, button_mihon_07, button_mihon_06, button_mihon_05, button_mihon_04, button_mihon_03, button_mihon_02, button_mihon_01]
+selected_var.trace("w", update_entries_and_buttons)  # 値変更時にupdate_entriesを呼び出し
 
 brightness_slots = [
     ("15", brightness_entry_15, button_mihon_15),
