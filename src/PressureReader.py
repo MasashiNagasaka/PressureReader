@@ -117,7 +117,8 @@ def is_path_in_dir(path, base_dir):
 
 
 def cleanup_temp_pngs():
-    os.makedirs(tmp_dir, exist_ok=True)
+    if not os.path.isdir(tmp_dir):
+        return
     for entry in os.scandir(tmp_dir):
         if not entry.is_file():
             continue
@@ -131,10 +132,13 @@ def cleanup_temp_pngs():
             os.remove(file_path)
         except OSError as e:
             print(f"[WARN] Failed to remove temp PNG: {file_path} ({e})")
+    expected_tmp_dir = os.path.abspath(os.path.join(PR_dir, "_pressure_tmp"))
+    if os.path.abspath(tmp_dir) != expected_tmp_dir:
+        return
+    if not os.path.isdir(tmp_dir):
+        return
     try:
-        expected_tmp_dir = os.path.abspath(os.path.join(PR_dir, "_pressure_tmp"))
-        if os.path.abspath(tmp_dir) == expected_tmp_dir and os.path.isdir(tmp_dir) and not os.listdir(tmp_dir):
-            os.rmdir(tmp_dir)
+        shutil.rmtree(tmp_dir)
     except OSError as e:
         print(f"[WARN] Failed to remove tmp dir: {tmp_dir} ({e})")
 
@@ -146,11 +150,21 @@ def schedule_cleanup_tmp_dir_after_exit():
     expected_tmp_dir = os.path.abspath(os.path.join(PR_dir, "_pressure_tmp"))
     if tmp_abs != expected_tmp_dir:
         return
-    # Bootloader側の後片付け完了後に、空フォルダだけ削除する
-    cmd = f'ping 127.0.0.1 -n 3 > nul & rmdir "{tmp_abs}" 2>nul'
+    # Bootloader側の後片付け完了タイミングに揺れがあるため、短時間リトライで削除する
+    ps_exe = os.path.join(os.environ.get("WINDIR", r"C:\\Windows"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+    if not os.path.isfile(ps_exe):
+        ps_exe = "powershell"
+    ps_cmd = (
+        "$target='" + tmp_abs.replace("'", "''") + "'; "
+        "for($i=0; $i -lt 20; $i++){ "
+        "if(-not (Test-Path -LiteralPath $target)){ break }; "
+        "Remove-Item -LiteralPath $target -Recurse -Force -ErrorAction SilentlyContinue; "
+        "Start-Sleep -Milliseconds 500 "
+        "}"
+    )
     try:
         subprocess.Popen(
-            ["cmd", "/c", cmd],
+            [ps_exe, "-NoProfile", "-WindowStyle", "Hidden", "-Command", ps_cmd],
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
     except OSError as e:
