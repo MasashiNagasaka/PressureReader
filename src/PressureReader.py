@@ -745,7 +745,7 @@ def c2p(brightness):
 def no_image(canvas, root):
     items = canvas.find_withtag("image")
     if not items:
-        comment_label = tk.Label(root, text=" 『PDF⇒PNG変換』ボタン、もしくは『PNGを開く』ボタンを押してください ",
+        comment_label = tk.Label(root, text=" 『PDF→PNG変換して開く』ボタン、もしくは『PNGを開く』ボタンを押してください ",
                                  fg="white", bg="#c942a5", font=("Meiryo ui", 16, "bold"))
         comment_label.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
         root.after(2000, comment_label.destroy)
@@ -1075,7 +1075,7 @@ options = ["5LW 持続圧","5LW 瞬間圧","4LW 持続圧","4LW 瞬間圧","3LW 
 option_menu = ttk.OptionMenu(button_frame, selected_var, SHEET_TYPE_PLACEHOLDER_DISPLAY, *options, style="Custom3.TMenubutton")
 option_menu.grid(row=4, column=0, columnspan=4, padx=(0,0), pady=(0,0), sticky=tk.W)
 
-label_ken = ttk.Label(button_frame, text="解析条件：", style="Custom.TLabel")
+label_ken = ttk.Label(button_frame, text="②解析条件：", style="Custom.TLabel")
 label_ken.grid(row=3, column=0, columnspan=4, padx=(5,0), pady=(0,0), sticky=tk.W)
 
 # Create buttons to select region
@@ -1551,7 +1551,7 @@ button_jouken.bind("<Leave>", on_leave_jouken)
 
 
 # 圧力表示*****************************************************************************************************************************
-label_ken = ttk.Label(button_frame, text="選択範囲の検出値（MPa）：", style="Custom.TLabel")
+label_ken = ttk.Label(button_frame, text="④選択範囲の検出値（MPa）：", style="Custom.TLabel")
 label_ken.grid(row=26, column=0, columnspan=4, padx=(5,0), pady=(20,0), sticky=tk.W)
 
 detected_value_frame = ttk.Frame(button_frame)
@@ -2827,7 +2827,7 @@ def update_circle():
     top_circle_py = center_y - radius_y
 
 
-label_ken = ttk.Label(button_frame, text="範囲選択形状：", style="Custom.TLabel")
+label_ken = ttk.Label(button_frame, text="③範囲選択形状：", style="Custom.TLabel")
 label_ken.grid(row=20, column=0, columnspan=4, padx=(5,0), pady=(10,0), sticky=tk.W)
 
 modevar = tk.IntVar()
@@ -3068,17 +3068,17 @@ def on_leave_p2p(event):
 icon1 = tk.PhotoImage(file=os.path.join(ima_path, "p2p_off.png"))  # 画像のリサイズ
 icon2 = tk.PhotoImage(file=os.path.join(ima_path, "p2p_on.png"))  # 画像のリサイズ
 
-label_junbi = ttk.Label(button_frame, text="画像準備：", style="Custom.TLabel")
+label_junbi = ttk.Label(button_frame, text="①画像準備：", style="Custom.TLabel")
 label_junbi.grid(row=0, column=0, columnspan=4, padx=(5,0), pady=(0,0), sticky=tk.W)
 
 # ボタン作成
 button_p2p = ttk.Button(
     button_frame,
     image=icon1,
-    text='PDF⇒PNG変換',
+    text='PDF→PNG変換して開く',
     compound=tk.LEFT,
     command=pdf_to_png,
-    padding=[5, 0, 25, 0]
+    padding=[5, 0, 8, 0]
 )
 
 button_p2p.image = icon1
@@ -3650,7 +3650,7 @@ button_xl = ttk.Button(
     padding=[7, 0, 5, 0]
 )
 
-label_syuturyoku = ttk.Label(button_frame, text="出力：", style="Custom.TLabel")
+label_syuturyoku = ttk.Label(button_frame, text="⑤出力：", style="Custom.TLabel")
 label_syuturyoku.grid(row=31, column=0, columnspan=4, padx=(5,0), pady=(8,0), sticky=tk.W)
 
 button_xl.image = icon9
@@ -3736,7 +3736,7 @@ button_reset_window = ttk.Button(
     padding=[7, 0, 22, 0]
 )
 
-label_clear_input = ttk.Label(button_frame, text="入力内容クリア：", style="Custom.TLabel")
+label_clear_input = ttk.Label(button_frame, text="⑥入力内容クリア：", style="Custom.TLabel")
 label_clear_input.grid(row=33, column=0, columnspan=4, padx=(5,0), pady=(10,0), sticky=tk.W)
 
 button_reset_window.image = icon15
@@ -3919,7 +3919,7 @@ def show_contact_info():
     contact_info_window.focus_force()
 
 
-label_contact = ttk.Label(button_frame, text="お問い合わせ：", style="Custom.TLabel")
+label_contact = ttk.Label(button_frame, text="⑦お問い合わせ：", style="Custom.TLabel")
 label_contact.grid(row=35, column=0, columnspan=4, padx=(5, 0), pady=(10, 0), sticky=tk.W)
 
 button_contact = ttk.Button(button_frame, text="問い合わせ先", command=show_contact_info)
