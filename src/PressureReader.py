@@ -116,6 +116,40 @@ def is_path_in_dir(path, base_dir):
         return False
 
 
+def cleanup_old_mei_dirs_on_startup():
+    if not getattr(sys, 'frozen', False):
+        return
+
+    tmp_abs = os.path.abspath(tmp_dir)
+    expected_tmp_dir = os.path.abspath(os.path.join(PR_dir, "_pressure_tmp"))
+    if tmp_abs != expected_tmp_dir:
+        return
+    if not os.path.isdir(tmp_abs):
+        return
+
+    current_mei_abs = os.path.abspath(RESOURCE_dir)
+    current_mei_name = os.path.basename(current_mei_abs)
+    if not current_mei_name.startswith("_MEI"):
+        return
+
+    current_mei_norm = os.path.normcase(current_mei_abs)
+    for entry in os.scandir(tmp_abs):
+        if not entry.is_dir(follow_symlinks=False):
+            continue
+        if not entry.name.startswith("_MEI"):
+            continue
+        target_dir = os.path.abspath(entry.path)
+        if not is_path_in_dir(target_dir, tmp_abs):
+            print(f"[WARN] Skip startup cleanup outside tmp dir: {target_dir}")
+            continue
+        if os.path.normcase(target_dir) == current_mei_norm:
+            continue
+        try:
+            shutil.rmtree(target_dir)
+        except OSError as e:
+            print(f"[WARN] Failed to remove old _MEI dir: {target_dir} ({e})")
+
+
 def cleanup_temp_pngs():
     if not os.path.isdir(tmp_dir):
         return
@@ -335,6 +369,7 @@ def load_sheet_setting_config():
     return config
 
 
+cleanup_old_mei_dirs_on_startup()
 cleanup_temp_pngs()
 atexit.register(cleanup_temp_pngs)
 try:
