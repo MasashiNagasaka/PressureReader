@@ -887,6 +887,9 @@ style_3 = ttk.Style()
 style_3.configure("Custom3.TMenubutton", font=("Meiryo ui", 11, "bold"), foreground="#c942a5")
 style_4 = ttk.Style()
 style_4.configure("Custom4.TLabel", font=("Meiryo ui", 9, "bold"))
+style_5 = ttk.Style()
+style_5.configure("BrightnessValue.TLabel", font=("Meiryo ui", 10, "bold"), foreground="#555555")
+TOGGLE_ON_COLOR = "#9BFD9B"  # RGB(155,253,155)
 
 SHEET_TYPE_PLACEHOLDER_DISPLAY = "感圧紙を選択"
 SHEET_TYPE_PLACEHOLDER_VALUE = "感圧紙を選択"
@@ -920,7 +923,7 @@ def update_entries_and_buttons(*args):
         swatch_brightness_bounds.clear()
         clear_detected_value_entries()
 
-    # 全てのエントリ/ボタン/状態表示を非表示にする
+    # 全てのエントリ/明度表示/状態表示を非表示にする
     for entry, button in zip(all_entries, all_buttons):
         entry.grid_forget()
         button.grid_forget()
@@ -955,7 +958,7 @@ def update_entries_and_buttons(*args):
     if is_unselected:
         return
 
-    # 感圧紙種類に応じて、見本ボタン＋状態ラベルを表示
+    # 感圧紙種類に応じて、明度表示ラベル＋状態ラベルを表示
     active_slots = get_active_brightness_slots()
     for i, (value_key, entry, button) in enumerate(active_slots):
         button.grid(row=7+i, column=0, columnspan=2, padx=(10,0), pady=(0,0), sticky=tk.E)
@@ -1078,20 +1081,20 @@ option_menu.grid(row=4, column=0, columnspan=4, padx=(0,0), pady=(0,0), sticky=t
 label_ken = ttk.Label(button_frame, text="②解析条件：", style="Custom.TLabel")
 label_ken.grid(row=3, column=0, columnspan=4, padx=(5,0), pady=(0,0), sticky=tk.W)
 
-# Create buttons to select region
-button_mihon_15 = ttk.Button(button_frame, text="1.5", width=7)
-button_mihon_13 = ttk.Button(button_frame, text="1.3", width=7)
-button_mihon_11 = ttk.Button(button_frame, text="1.1", width=7)
-button_mihon_10 = ttk.Button(button_frame, text="1.0", width=7)
-button_mihon_09 = ttk.Button(button_frame, text="0.9", width=7)
-button_mihon_08 = ttk.Button(button_frame, text="0.8", width=7)
-button_mihon_07 = ttk.Button(button_frame, text="0.7", width=7)
-button_mihon_06 = ttk.Button(button_frame, text="0.6", width=7)
-button_mihon_05 = ttk.Button(button_frame, text="0.5", width=7)
-button_mihon_04 = ttk.Button(button_frame, text="0.4", width=7)
-button_mihon_03 = ttk.Button(button_frame, text="0.3", width=7)
-button_mihon_02 = ttk.Button(button_frame, text="0.2", width=7)
-button_mihon_01 = ttk.Button(button_frame, text="0.1", width=7)
+# 明度値の表示ラベル（表示専用）
+button_mihon_15 = ttk.Label(button_frame, text="1.5", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_13 = ttk.Label(button_frame, text="1.3", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_11 = ttk.Label(button_frame, text="1.1", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_10 = ttk.Label(button_frame, text="1.0", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_09 = ttk.Label(button_frame, text="0.9", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_08 = ttk.Label(button_frame, text="0.8", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_07 = ttk.Label(button_frame, text="0.7", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_06 = ttk.Label(button_frame, text="0.6", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_05 = ttk.Label(button_frame, text="0.5", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_04 = ttk.Label(button_frame, text="0.4", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_03 = ttk.Label(button_frame, text="0.3", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_02 = ttk.Label(button_frame, text="0.2", width=7, anchor="center", style="BrightnessValue.TLabel")
+button_mihon_01 = ttk.Label(button_frame, text="0.1", width=7, anchor="center", style="BrightnessValue.TLabel")
 
 # Create textboxes to display brightness values
 brightness_entry_15 = ttk.Entry(button_frame, width=15)
@@ -1193,29 +1196,57 @@ shitsudo_entry.grid(row=16, column=2, columnspan=2, padx=(5,10), pady=(0,0), sti
 
 # スケーリングボタン*****************************************************************************************************
 
-# pixelをmmに
+scaling_toggle_on = tk.BooleanVar(value=False)
+scaling_button_off_bg = None
+
+def update_scaling_button_visual():
+    if scaling_button_off_bg is None:
+        return
+    if scaling_toggle_on.get():
+        button_pixmm.config(bg=TOGGLE_ON_COLOR, activebackground=TOGGLE_ON_COLOR)
+    else:
+        button_pixmm.config(bg=scaling_button_off_bg, activebackground=scaling_button_off_bg)
+
+def deactivate_scaling_mode(clear_lines=True):
+    global line_start, line_end, temp_line1, temp_line2
+    line_start, line_end, temp_line1, temp_line2 = None, None, None, None
+    if clear_lines:
+        canvas.delete("line")
+    canvas.unbind("<Motion>")
+    canvas.unbind("<Button-1>")
+    canvas.bind("<Button-1>", on_mouse_down)
+    canvas.bind("<B1-Motion>", on_mouse_drag)
+    canvas.bind("<ButtonRelease-1>", on_mouse_up)
+    scaling_toggle_on.set(False)
+    update_scaling_button_visual()
+
 def set_conversion_factor():
     global line_start, line_end, temp_line1, temp_line2, conversion_factor, scale, photo_ico
-    
+
+    if scaling_toggle_on.get():
+        deactivate_scaling_mode(clear_lines=True)
+        return
+
     if no_image(canvas, root):
         return
-    
+
+    scaling_toggle_on.set(True)
+    update_scaling_button_visual()
+
     def custom_askfloat(title, prompt):
-        """ カスタムダイアログを作成し、アイコンを設定 """
         dialog = tk.Toplevel(root)
         dialog.title(title)
-        w = 280  # 幅
-        h = 140  # 高さ
+        w = 280
+        h = 140
         x = (screen_width - w) // 2
         y = (screen_height - h) // 2
         dialog.geometry(f"{w}x{h}+{x}+{y}")
-        
-        # アイコン設定
+
         dialog.iconphoto(False, photo_ico)
         tk.Label(dialog, text=prompt).pack(pady=(10, 6))
         entry = tk.Entry(dialog)
         entry.pack(pady=4)
-        
+
         result = None
         def submit():
             nonlocal result
@@ -1224,69 +1255,46 @@ def set_conversion_factor():
                 dialog.destroy()
             except ValueError:
                 entry.delete(0, tk.END)
-    
+
         tk.Button(dialog, text="OK", command=submit, width=13).pack(pady=(8, 10))
-        
-        dialog.grab_set()  # モーダルにする
-        root.wait_window(dialog)  # ダイアログが閉じるまで待機
-        
+
+        dialog.grab_set()
+        root.wait_window(dialog)
         return result
 
     def on_line_draw(event):
         global line_start, line_end, temp_line1, temp_line2, conversion_factor, scale
-    
+
+        if not scaling_toggle_on.get():
+            return
+
         if not line_start:
-            # 最初のクリックで開始点を設定
             line_start = (event.x, event.y)
         else:
-            # 次のクリックで終了点を設定
             line_end = (event.x, event.y)
             temp_line2 = canvas.create_line(
                 line_start[0], line_start[1], line_end[0], line_end[1], fill="red", width=3, tags="line"
             )
-    
-            # ピクセル距離を計算
+
             pixel_distance = math.sqrt((line_end[0] - line_start[0]) ** 2 + (line_end[1] - line_start[1]) ** 2) / scale
-    
-            # 実寸を入力して換算係数を設定
             real_length = custom_askfloat("mm⇒px換算値", "線分の実寸[mm]を入力してください")
             if real_length is None:
-                # キャンセルされた場合
-                canvas.delete("line")
-                reset_selection()
+                deactivate_scaling_mode(clear_lines=True)
                 return
-    
-            if real_length > 0:
-                # 換算係数を計算して表示
+
+            if real_length > 0 and pixel_distance > 0:
                 conversion_factor = round(real_length / pixel_distance, 6)
                 pixmm_entry.delete(0, 'end')
                 pixmm_entry.insert(0, conversion_factor)
-                
                 messagebox.showinfo("成功", f"換算係数を設定しました: {conversion_factor:.4f} mm/px")
             else:
                 messagebox.showwarning("エラー", "有効な実寸を入力してください。")
-    
-            # 最終的に線を消去
-            canvas.delete("line")
-            reset_selection()
 
-    def reset_selection():
-        """選択状態をリセットし、イベントを解除する。"""
-        global line_start, line_end, temp_line1, temp_line2
-        line_start, line_end, temp_line1, temp_line2 = None, None, None, None
-        canvas.unbind("<Motion>")
-        canvas.unbind("<Button-1>")
-
-        # 必要に応じて他のイベントを再バインド
-        canvas.bind("<Button-1>", on_mouse_down)
-        canvas.bind("<B1-Motion>", on_mouse_drag)
-        canvas.bind("<ButtonRelease-1>", on_mouse_up)
+            deactivate_scaling_mode(clear_lines=True)
 
     def on_mouse_move(event):
-        """マウス移動中の線を描画"""
         global temp_line1
         if line_start:
-            # 既存の仮線を削除して新しい線を描画
             if temp_line1:
                 canvas.delete(temp_line1)
             temp_line1 = canvas.create_line(
@@ -1294,13 +1302,14 @@ def set_conversion_factor():
             )
 
     canvas.delete("mark","line","text","rect")
-    # マウスイベントのバインド
     canvas.bind("<Button-1>", on_line_draw)
     canvas.bind("<Motion>", on_mouse_move)
     temp_line1 = None
 
-button_pixmm = ttk.Button(button_frame, text="ｽｹｰﾘﾝｸﾞ", width=7, command=set_conversion_factor)
+button_pixmm = tk.Button(button_frame, text="ｽｹｰﾘﾝｸﾞ", width=7, command=set_conversion_factor)
 button_pixmm.grid(row=17, column=0, columnspan=2, padx=(10,0), pady=(5,0), sticky=tk.W)
+scaling_button_off_bg = button_pixmm.cget("bg")
+update_scaling_button_visual()
 
 pixmm_unit_frame = tk.Frame(button_frame)
 pixmm_unit_frame.grid(row=17, column=2, columnspan=1, padx=(5,0), pady=(5,0), sticky=tk.W)
@@ -1441,29 +1450,63 @@ def insert_to_visible_entries(avg_list, bounds_list=None, debug_failed_observed_
         print(f"[DEBUG] swatch missing brightness keys: {', '.join(failed_keys)}")
 
 #ボタン設置
+swatch_toggle_on = tk.BooleanVar(value=False)
+iromihon_button_off_bg = None
+
+def update_iromihon_button_visual(hover=False):
+    if iromihon_button_off_bg is None:
+        return
+    if swatch_toggle_on.get():
+        button_iromihon.config(
+            image=icon14,
+            text='標準色見本処理',
+            bg=TOGGLE_ON_COLOR,
+            activebackground=TOGGLE_ON_COLOR,
+        )
+        button_iromihon.image = icon14
+    else:
+        button_iromihon.config(
+            image=icon14 if hover else icon13,
+            text='標準色見本処理',
+            bg=iromihon_button_off_bg,
+            activebackground=iromihon_button_off_bg,
+        )
+        button_iromihon.image = icon14 if hover else icon13
+
+def toggle_swatch_mode():
+    next_on = not swatch_toggle_on.get()
+    if next_on:
+        set_mode_rect("14")
+    else:
+        set_mode_rect("99")
+    update_iromihon_button_visual(hover=False)
+
 def on_enter_iromihon(event):
-    button_iromihon.config(image=icon14)
+    update_iromihon_button_visual(hover=True)
 def on_leave_iromihon(event):
-    button_iromihon.config(image=icon13)
+    update_iromihon_button_visual(hover=False)
 
 # 画像の読み込みとリサイズ
 icon13 = tk.PhotoImage(file=os.path.join(ima_path, "iromihon_off.png"))  # 画像のリサイズ
 icon14 = tk.PhotoImage(file=os.path.join(ima_path, "iromihon_on.png"))  # 画像のリサイズ
 
 # ボタン作成
-button_iromihon = ttk.Button(
+button_iromihon = tk.Button(
     button_frame,
     image=icon13,
     text='標準色見本処理',
     compound=tk.LEFT,
-    command=lambda: set_mode_rect("14"),
-    padding=[5, 0, 22, 0]
+    command=toggle_swatch_mode,
+    padx=5,
+    pady=0,
 )
 
 button_iromihon.image = icon13
 button_iromihon.grid(row=5, column=0, columnspan=4, padx=(8, 0), pady=(5, 0), sticky=tk.W)
 button_iromihon.bind("<Enter>", on_enter_iromihon)
 button_iromihon.bind("<Leave>", on_leave_iromihon)
+iromihon_button_off_bg = button_iromihon.cget("bg")
+update_iromihon_button_visual(hover=False)
 
 
 
@@ -2407,6 +2450,8 @@ def set_mode_rect(value):
     global dragging_handle, center_x, center_y, radius, circle_id, oval_handles, radius_x, radius_y
     global circle_click_point, circle_dragged
     global polygon_click_point, polygon_dragged
+    if "scaling_toggle_on" in globals() and scaling_toggle_on.get():
+        deactivate_scaling_mode(clear_lines=True)
     mode = "rect"
     current_value = value
     rect_selected = True
@@ -2425,11 +2470,17 @@ def set_mode_rect(value):
     circle_dragged = False
     polygon_click_point = None
     polygon_dragged = False
+    if "swatch_toggle_on" in globals():
+        swatch_toggle_on.set(value == "14")
+    if "update_iromihon_button_visual" in globals():
+        update_iromihon_button_visual(hover=False)
 
 def set_mode_polygon():
     global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging
     global circle_click_point, circle_dragged
     global polygon_click_point, polygon_dragged
+    if "scaling_toggle_on" in globals() and scaling_toggle_on.get():
+        deactivate_scaling_mode(clear_lines=True)
     mode = "polygon"
     rect_selected = False
     canvas.delete("mark","line","text","rect","polygon","circle","point_pressure","polygon_preview")
@@ -2447,6 +2498,8 @@ def set_mode_circle():
     global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging,dragging_handle,center_x,center_y,radius,circle_id
     global circle_click_point, circle_dragged
     global polygon_click_point, polygon_dragged
+    if "scaling_toggle_on" in globals() and scaling_toggle_on.get():
+        deactivate_scaling_mode(clear_lines=True)
     mode = "circle"
     rect_selected = False
     canvas.delete("mark","line","text","rect","polygon","circle","point_pressure","polygon_preview")
@@ -2726,6 +2779,10 @@ def on_mouse_up(event):
             dimension_text = canvas.create_text(x1, y1-36, text=display_text, anchor="nw", fill="blue", font=("Arial", mm2fontsize), tags="text")
         
         if current_value != "99":
+            if "swatch_toggle_on" in globals():
+                swatch_toggle_on.set(False)
+            if "update_iromihon_button_visual" in globals():
+                update_iromihon_button_visual(hover=False)
             set_mode_rect("99")
 
         # 寸法情報を描画
