@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
+from tkinter import font as tkfont
 from PIL import Image, ImageTk, PngImagePlugin
 import cv2
 import numpy as np
@@ -1816,18 +1817,142 @@ def calculate_point_pressure(canvas_x, canvas_y):
         return None
 
 
+def _collect_avoid_bboxes(extra_bboxes=None):
+    polygon_handle_margin = 6
+    avoid_bboxes = []
+    seen_item_ids = set()
+    for tag in ("rect", "polygon", "circle", "mark", "line", "point_pressure"):
+        for item_id in canvas.find_withtag(tag):
+            if item_id in seen_item_ids:
+                continue
+            seen_item_ids.add(item_id)
+            bbox = canvas.bbox(item_id)
+            if bbox is not None:
+                item_tags = canvas.gettags(item_id)
+                if "polygon_handle" in item_tags:
+                    bbox = (
+                        bbox[0] - polygon_handle_margin,
+                        bbox[1] - polygon_handle_margin,
+                        bbox[2] + polygon_handle_margin,
+                        bbox[3] + polygon_handle_margin,
+                    )
+                avoid_bboxes.append(bbox)
+    if extra_bboxes:
+        avoid_bboxes.extend(extra_bboxes)
+    return avoid_bboxes
+
+
+def _measure_text_bbox(x, y, text, font_obj, anchor):
+    lines = text.split("\n")
+    width = max(font_obj.measure(line) for line in lines) if lines else 0
+    line_height = font_obj.metrics("linespace")
+    height = max(1, len(lines)) * line_height
+
+    if anchor == "s":
+        left = x - width / 2
+        top = y - height
+    elif anchor == "center":
+        left = x - width / 2
+        top = y - height / 2
+    else:  # "nw" を基本とする
+        left = x
+        top = y
+
+    return (left, top, left + width, top + height)
+
+
+def _overlap_area(b1, b2):
+    ix1 = max(b1[0], b2[0])
+    iy1 = max(b1[1], b2[1])
+    ix2 = min(b1[2], b2[2])
+    iy2 = min(b1[3], b2[3])
+    if ix2 <= ix1 or iy2 <= iy1:
+        return 0.0
+    return float((ix2 - ix1) * (iy2 - iy1))
+
+
+def _bbox_edge_distance(b1, b2):
+    dx = max(b2[0] - b1[2], b1[0] - b2[2], 0.0)
+    dy = max(b2[1] - b1[3], b1[1] - b2[3], 0.0)
+    return math.hypot(dx, dy)
+
+
+def _find_non_overlapping_text_position(text, anchor, candidates, avoid_bboxes, font_tuple):
+    font_obj = tkfont.Font(root=root, font=font_tuple)
+    canvas_w = max(1, canvas.winfo_width())
+    canvas_h = max(1, canvas.winfo_height())
+    margin = 4
+
+    best = None
+    for cx, cy in candidates:
+        bbox = _measure_text_bbox(cx, cy, text, font_obj, anchor)
+
+        dx = 0.0
+        dy = 0.0
+        if bbox[0] < margin:
+            dx = margin - bbox[0]
+        elif bbox[2] > canvas_w - margin:
+            dx = (canvas_w - margin) - bbox[2]
+        if bbox[1] < margin:
+            dy = margin - bbox[1]
+        elif bbox[3] > canvas_h - margin:
+            dy = (canvas_h - margin) - bbox[3]
+
+        adj_x = cx + dx
+        adj_y = cy + dy
+        adj_bbox = _measure_text_bbox(adj_x, adj_y, text, font_obj, anchor)
+        overlap = sum(_overlap_area(adj_bbox, target_bbox) for target_bbox in avoid_bboxes)
+        score = (overlap, abs(dx) + abs(dy))
+
+        if best is None or score < best[0]:
+            best = (score, adj_x, adj_y)
+            if overlap == 0:
+                break
+
+    if best is None:
+        return candidates[0]
+    return best[1], best[2]
+
+
+def _create_non_overlapping_text(text, candidates, tags, font_tuple, anchor="nw", fill="blue"):
+    avoid_bboxes = _collect_avoid_bboxes()
+    text_x, text_y = _find_non_overlapping_text_position(
+        text, anchor, candidates, avoid_bboxes, font_tuple
+    )
+    return canvas.create_text(
+        text_x,
+        text_y,
+        text=text,
+        anchor=anchor,
+        fill=fill,
+        font=font_tuple,
+        tags=tags,
+    )
+
+
 def show_point_pressure_text(canvas_x, canvas_y, pressure_value):
     canvas.delete("point_pressure")
     pressure_text = format_detected_pressure_value(pressure_value)
     text = "測定範囲外" if pressure_text == "測定範囲外" else f"{pressure_text}MPa"
+    font_tuple = ("Arial", mm2fontsize)
+    candidates = [
+        (canvas_x + 8, canvas_y - 28),
+        (canvas_x + 16, canvas_y - 8),
+        (canvas_x - 72, canvas_y - 8),
+        (canvas_x + 8, canvas_y + 16),
+    ]
+    avoid_bboxes = _collect_avoid_bboxes()
+    text_x, text_y = _find_non_overlapping_text_position(
+        text, "nw", candidates, avoid_bboxes, font_tuple
+    )
 
     canvas.create_text(
-        canvas_x,
-        canvas_y - 10,
+        text_x,
+        text_y,
         text=text,
-        anchor="s",
+        anchor="nw",
         fill="blue",
-        font=("Arial", mm2fontsize),
+        font=font_tuple,
         tags=("point_pressure", "point_pressure_single"),
     )
 
@@ -1837,14 +1962,88 @@ def show_polygon_point_pressure_text(point_index, canvas_x, canvas_y, pressure_v
     canvas.delete(point_tag)
     pressure_text = format_detected_pressure_value(pressure_value)
     text = "測定範囲外" if pressure_text == "測定範囲外" else f"{pressure_text}MPa"
+    font_tuple = ("Arial", mm2fontsize)
+    candidates = [
+        (canvas_x + 20, canvas_y - 28),
+        (canvas_x + 28, canvas_y - 8),
+        (canvas_x - 72, canvas_y - 8),
+        (canvas_x + 20, canvas_y + 16),
+    ]
+    font_obj = tkfont.Font(root=root, font=font_tuple)
+    canvas_w = max(1, canvas.winfo_width())
+    canvas_h = max(1, canvas.winfo_height())
+    margin = 4
+    min_handle_distance_px = 4.0
+    handle_padding_px = 10
+
+    handle_bboxes = []
+    for pid in point_ids:
+        hb = canvas.bbox(pid)
+        if hb is not None:
+            handle_bboxes.append(
+                (
+                    hb[0] - handle_padding_px,
+                    hb[1] - handle_padding_px,
+                    hb[2] + handle_padding_px,
+                    hb[3] + handle_padding_px,
+                )
+            )
+
+    avoid_bboxes = _collect_avoid_bboxes(extra_bboxes=handle_bboxes)
+    positions = []
+    for cx, cy in candidates:
+        for shift in range(0, 41, 4):
+            positions.append((cx + shift, cy, shift))
+
+    best = None
+    for cx, cy, shift in positions:
+        bbox = _measure_text_bbox(cx, cy, text, font_obj, "nw")
+        dx = 0.0
+        dy = 0.0
+        if bbox[0] < margin:
+            dx = margin - bbox[0]
+        elif bbox[2] > canvas_w - margin:
+            dx = (canvas_w - margin) - bbox[2]
+        if bbox[1] < margin:
+            dy = margin - bbox[1]
+        elif bbox[3] > canvas_h - margin:
+            dy = (canvas_h - margin) - bbox[3]
+
+        tx = cx + dx
+        ty = cy + dy
+        tb = _measure_text_bbox(tx, ty, text, font_obj, "nw")
+        overlap = sum(_overlap_area(tb, ab) for ab in avoid_bboxes)
+        min_dist = float("inf")
+        if handle_bboxes:
+            min_dist = min(_bbox_edge_distance(tb, hb) for hb in handle_bboxes)
+
+        is_valid = (overlap == 0.0) and (min_dist >= min_handle_distance_px)
+        score = (
+            0 if is_valid else 1,
+            overlap,
+            -(min_dist if min_dist != float("inf") else 9999.0),
+            shift,
+            abs(dx) + abs(dy),
+        )
+        if best is None or score < best[0]:
+            best = (score, tx, ty)
+            if is_valid and shift == 0:
+                break
+
+    if best is None:
+        text_x, text_y = _find_non_overlapping_text_position(
+            text, "nw", candidates, avoid_bboxes, font_tuple
+        )
+    else:
+        text_x, text_y = best[1], best[2]
 
     canvas.create_text(
-        canvas_x,
-        canvas_y - 10,
+        text_x,
+        text_y,
         text=text,
-        anchor="s",
+        anchor="nw",
         fill="blue",
-        font=("Arial", mm2fontsize),
+        font=font_tuple,
         tags=("point_pressure", point_tag),
     )
 
@@ -2278,7 +2477,7 @@ def calculate_brightness(start_x, start_y, end_x, end_y, value_key, polygon_poin
 # 多角形モードの処理
 def calculate_brightness2(polygon_points):
     global scale, image_org_w, image_org_h, canvas_width, canvas_height, image_with_metadata, white_Value, \
-        cv_image_2, first_polygon_point, conversion_factor, pixmm_entry, canvas, mm2fontsize, px_count
+        cv_image_2, first_polygon_point, conversion_factor, pixmm_entry, canvas, mm2fontsize, px_count, point_ids
     
     inv_scale = 1 / scale  # 逆スケール変換
     canvas_width = canvas.winfo_width()
@@ -2341,8 +2540,99 @@ def calculate_brightness2(polygon_points):
         canvas.delete("text")
         
         first_polygon_point = polygon_points[0]
-        x_fpp, y_fpp = first_polygon_point
-        canvas.create_text(x_fpp, y_fpp-45, text=display_text, anchor="nw", fill="blue", font=("Arial", mm2fontsize), tags="text")
+        font_tuple = ("Arial", mm2fontsize)
+        font_obj = tkfont.Font(root=root, font=font_tuple)
+        canvas_w = max(1, canvas.winfo_width())
+        canvas_h = max(1, canvas.winfo_height())
+        margin = 4
+        top_handle_margin = 12
+        min_top_handle_distance = 6.0
+
+        min_x = min(x for x, _ in polygon_points)
+        max_x = max(x for x, _ in polygon_points)
+        min_y = min(y for _, y in polygon_points)
+        center_x = (min_x + max_x) / 2.0
+        label_width = max(font_obj.measure(line) for line in display_text.split("\n"))
+
+        top_idx = min(range(len(polygon_points)), key=lambda i: polygon_points[i][1])
+        top_forbidden_bbox = None
+        if 0 <= top_idx < len(point_ids):
+            top_handle_bbox = canvas.bbox(point_ids[top_idx])
+            if top_handle_bbox is not None:
+                top_forbidden_bbox = (
+                    top_handle_bbox[0] - top_handle_margin,
+                    top_handle_bbox[1] - top_handle_margin,
+                    top_handle_bbox[2] + top_handle_margin,
+                    top_handle_bbox[3] + top_handle_margin,
+                )
+
+        text_candidates = [
+            (center_x - label_width / 2.0, min_y - 48),
+            (max_x + 12, min_y - 24),
+            (min_x - label_width - 12, min_y - 24),
+            (center_x - label_width / 2.0, min_y + 20),
+        ]
+
+        extra_bboxes = [top_forbidden_bbox] if top_forbidden_bbox is not None else []
+        avoid_bboxes = _collect_avoid_bboxes(extra_bboxes=extra_bboxes)
+
+        best = None
+        for base_x, base_y in text_candidates:
+            for shift_x in range(0, 41, 4):
+                for shift_y in range(0, 25, 4):
+                    cx = base_x + shift_x
+                    cy = base_y + shift_y
+                    tb = _measure_text_bbox(cx, cy, display_text, font_obj, "nw")
+
+                    clamp_dx = 0.0
+                    clamp_dy = 0.0
+                    if tb[0] < margin:
+                        clamp_dx = margin - tb[0]
+                    elif tb[2] > canvas_w - margin:
+                        clamp_dx = (canvas_w - margin) - tb[2]
+                    if tb[1] < margin:
+                        clamp_dy = margin - tb[1]
+                    elif tb[3] > canvas_h - margin:
+                        clamp_dy = (canvas_h - margin) - tb[3]
+
+                    tx = cx + clamp_dx
+                    ty = cy + clamp_dy
+                    tb2 = _measure_text_bbox(tx, ty, display_text, font_obj, "nw")
+                    overlap = sum(_overlap_area(tb2, b) for b in avoid_bboxes)
+
+                    top_dist = float("inf")
+                    if top_forbidden_bbox is not None:
+                        top_dist = _bbox_edge_distance(tb2, top_forbidden_bbox)
+                    valid = (overlap == 0.0) and (top_dist >= min_top_handle_distance)
+
+                    score = (
+                        0 if valid else 1,
+                        overlap,
+                        -(top_dist if top_dist != float("inf") else 9999.0),
+                        shift_x + shift_y,
+                        abs(clamp_dx) + abs(clamp_dy),
+                    )
+                    if best is None or score < best[0]:
+                        best = (score, tx, ty)
+                if best is not None and best[0][0] == 0 and shift_x == 0:
+                    break
+
+        if best is not None:
+            text_x, text_y = best[1], best[2]
+        else:
+            text_x, text_y = _find_non_overlapping_text_position(
+                display_text, "nw", text_candidates, avoid_bboxes, font_tuple
+            )
+
+        canvas.create_text(
+            text_x,
+            text_y,
+            text=display_text,
+            anchor="nw",
+            fill="blue",
+            font=font_tuple,
+            tags="text",
+        )
         
     else:
         # 有効なピクセルがない場合のデフォルト値
@@ -2437,13 +2727,18 @@ def calculate_brightness3():
     
     # テキスト表示の更新
     canvas.delete("text")
-    canvas.create_text(
-        top_circle_px, top_circle_py - 45, 
-        text=display_text, 
-        anchor="nw", 
-        fill="blue", 
-        font=("Arial", mm2fontsize), 
-        tags="text"
+    font_tuple = ("Arial", mm2fontsize)
+    text_candidates = [
+        (top_circle_px, top_circle_py - 45),
+        (top_circle_px + radius_x + 12, top_circle_py - 16),
+        (top_circle_px - radius_x - 180, top_circle_py - 16),
+        (top_circle_px, top_circle_py + 28),
+    ]
+    _create_non_overlapping_text(
+        text=display_text,
+        candidates=text_candidates,
+        tags="text",
+        font_tuple=font_tuple,
     )
     
     
@@ -2571,7 +2866,16 @@ def on_mouse_down(event):
         polygon_click_point = None
         polygon_dragged = False
         polygon_points.append((start_x, start_y))
-        point_id = canvas.create_oval(start_x - oval_size, start_y - oval_size, start_x + oval_size, start_y + oval_size, width=oval_width, fill="cyan", outline="blue", tags="mark")
+        point_id = canvas.create_oval(
+            start_x - oval_size,
+            start_y - oval_size,
+            start_x + oval_size,
+            start_y + oval_size,
+            width=oval_width,
+            fill="cyan",
+            outline="blue",
+            tags=("mark", "polygon_handle"),
+        )
         point_ids.append(point_id)
         update_polygon_preview()
         rect_selected = False
@@ -2795,10 +3099,34 @@ def on_mouse_up(event):
             area_mm2 = width_mm * height_mm
             px_mm2 = px_count * (conversion_factor**2)
             display_text = f"選択範囲面積 {area_mm2:.3f}mm²\n有効測定範囲面積 {px_mm2:.3f}mm²"
-            dimension_text = canvas.create_text(x1, y1-36, text=display_text, anchor="nw", fill="blue", font=("Arial", mm2fontsize), tags="text")
+            font_tuple = ("Arial", mm2fontsize)
+            text_candidates = [
+                (x1, y1 - 36),
+                (x2 + 8, y1 - 16),
+                (x1 - 180, y1 - 16),
+                (x1, y2 + 8),
+            ]
+            dimension_text = _create_non_overlapping_text(
+                text=display_text,
+                candidates=text_candidates,
+                tags="text",
+                font_tuple=font_tuple,
+            )
         elif current_value == "99":
             display_text = f"選択範囲面積 {pixel_area:.3f}px²\n有効測定範囲面積 {px_count:.3f}px²"
-            dimension_text = canvas.create_text(x1, y1-36, text=display_text, anchor="nw", fill="blue", font=("Arial", mm2fontsize), tags="text")
+            font_tuple = ("Arial", mm2fontsize)
+            text_candidates = [
+                (x1, y1 - 36),
+                (x2 + 8, y1 - 16),
+                (x1 - 180, y1 - 16),
+                (x1, y2 + 8),
+            ]
+            dimension_text = _create_non_overlapping_text(
+                text=display_text,
+                candidates=text_candidates,
+                tags="text",
+                font_tuple=font_tuple,
+            )
         
         if current_value != "99":
             if "swatch_toggle_on" in globals():
@@ -3953,7 +4281,7 @@ def show_contact_info():
 
     consultation_title_label = tk.Label(
         consultation_block,
-        text="計測相談・依頼",
+        text="計測相談・依頼について",
         bg="#ffffff",
         fg="#1f2d3d",
         font=("Meiryo ui", 11),

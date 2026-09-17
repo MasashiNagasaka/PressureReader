@@ -27,8 +27,8 @@
 - `電動化デジタル開発室 Nagasaka, Masashi/長坂 政史`
 - その直下: `mail：masashi_nagasaka_zd@mail.toyota.co.jp` + `コピー` ボタン（左端は担当者名行と揃える）
 
-### ブロック2（計測相談・依頼）
-- `計測相談・依頼`
+### ブロック2（計測相談・依頼について）
+- `計測相談・依頼について`
 - `計測・デジタル課 Suzuki, Kota/鈴木 宏太`
 - その直下: `mail：kota_suzuki_ab@mail.toyota.co.jp` + `コピー` ボタン（左端は担当者名行と揃える）
 
