@@ -382,6 +382,25 @@ except Exception as e:
 
 # スプラッシュ表示●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●●
 
+def set_window_topmost(window):
+    try:
+        window.attributes("-topmost", True)
+        window.lift()
+        window.focus_force()
+    except tk.TclError:
+        pass
+
+
+def set_window_topmost_temporarily(window, duration_ms=800):
+    try:
+        window.attributes("-topmost", True)
+        window.lift()
+        window.focus_force()
+        window.after(duration_ms, lambda: window.attributes("-topmost", False))
+    except tk.TclError:
+        pass
+
+
 # Tkinterウィンドウを作成
 root = tk.Tk()
 root.title("画像表示")
@@ -423,6 +442,7 @@ show_image_with_text()
 x = (screen_width - new_width) // 2
 y = (screen_height - new_height) // 2
 root.geometry(f"{new_width}x{new_height}+{x}+{y}")
+set_window_topmost(root)
 
 # 一定時間後にウィンドウを閉じる
 root.after(2000, root.destroy)
@@ -445,6 +465,7 @@ def show_startup_info_window():
     info_root.geometry(
         f"{window_width}x{window_height}+{(screen_width - window_width) // 2}+{(screen_height - window_height) // 2}"
     )
+    set_window_topmost(info_root)
 
     header_frame = tk.Frame(info_root, bg="#1f3a5f", height=56)
     header_frame.pack(fill=tk.X, side=tk.TOP)
@@ -796,6 +817,7 @@ def completed_p2p():
         
 root = tk.Tk()
 root.state('zoomed')  # Windowsで最大化
+set_window_topmost_temporarily(root, duration_ms=1200)
 
 encoded_string = "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" \
