@@ -2652,22 +2652,23 @@ def calculate_brightness2(polygon_points):
                 if best is not None and best[0][0] == 0 and shift_x == 0:
                     break
 
-        if best is not None:
-            text_x, text_y = best[1], best[2]
-        else:
-            text_x, text_y = _find_non_overlapping_text_position(
-                display_text, "nw", text_candidates, avoid_bboxes, font_tuple
-            )
+        if should_show_area_text():
+            if best is not None:
+                text_x, text_y = best[1], best[2]
+            else:
+                text_x, text_y = _find_non_overlapping_text_position(
+                    display_text, "nw", text_candidates, avoid_bboxes, font_tuple
+                )
 
-        canvas.create_text(
-            text_x,
-            text_y,
-            text=display_text,
-            anchor="nw",
-            fill="blue",
-            font=font_tuple,
-            tags="text",
-        )
+            canvas.create_text(
+                text_x,
+                text_y,
+                text=display_text,
+                anchor="nw",
+                fill="blue",
+                font=font_tuple,
+                tags="text",
+            )
         
     else:
         # 有効なピクセルがない場合のデフォルト値
@@ -2769,12 +2770,13 @@ def calculate_brightness3():
         (top_circle_px - radius_x - 180, top_circle_py - 16),
         (top_circle_px, top_circle_py + 28),
     ]
-    _create_non_overlapping_text(
-        text=display_text,
-        candidates=text_candidates,
-        tags="text",
-        font_tuple=font_tuple,
-    )
+    if should_show_area_text():
+        _create_non_overlapping_text(
+            text=display_text,
+            candidates=text_candidates,
+            tags="text",
+            font_tuple=font_tuple,
+        )
     
     
     
@@ -2913,6 +2915,43 @@ def clear_selection_shapes_only():
     polygon_dragged = False
 
 
+def is_swatch_mode_active():
+    return "swatch_toggle_on" in globals() and swatch_toggle_on.get()
+
+
+def is_scaling_mode_active():
+    return "scaling_toggle_on" in globals() and scaling_toggle_on.get()
+
+
+def is_range_selection_in_progress():
+    current_mode = globals().get("mode")
+    if current_mode == "rect":
+        return bool(globals().get("rect_selected", False))
+    if current_mode == "polygon":
+        return globals().get("polygon_id") is None
+    if current_mode == "circle":
+        return bool(globals().get("drawing_circle", False)) or globals().get("circle_id") is None
+    return False
+
+
+def should_show_point_pressure(is_confirm_click=False):
+    if is_swatch_mode_active() or is_scaling_mode_active():
+        return False
+    if is_confirm_click:
+        return False
+    if is_range_selection_in_progress():
+        return False
+    return True
+
+
+def should_show_area_text():
+    if is_swatch_mode_active() or is_scaling_mode_active():
+        return False
+    if is_range_selection_in_progress():
+        return False
+    return True
+
+
 def on_mouse_down(event):
     global start_x, start_y, rect, rect_selected, dimension_text, temp_line1, temp_line2, polygon_points, point_ids, polygon_id ,\
         center_x, center_y, radius, dragging_handle, oval_handles, drawing_circle, moving_circle, oval_size, oval_width, radius_x ,\
@@ -2925,6 +2964,10 @@ def on_mouse_down(event):
     if not range_on:
         # OFF時は既存図形の編集のみ許可し、新規作成開始は抑止
         if mode == "rect" and current_value == "99":
+            if should_show_point_pressure(is_confirm_click=False):
+                if are_all_entries_valid(all_entries, ondo_entry, shitsudo_entry):
+                    point_press = calculate_point_pressure(event.x, event.y)
+                    show_point_pressure_text(event.x, event.y, point_press)
             return
         if mode == "polygon" and polygon_id is None:
             return
@@ -2943,9 +2986,6 @@ def on_mouse_down(event):
         rect_selected = True
         canvas.delete("rect","text","line","mark","point_pressure")
         rect = canvas.create_rectangle(start_x, start_y, start_x, start_y, outline='blue',width=1, tags="rect")
-        if current_value == "99":
-            point_press = calculate_point_pressure(start_x, start_y)
-            show_point_pressure_text(start_x, start_y, point_press)
         
     elif mode == "polygon":
         if range_on and polygon_id is None and len(polygon_points) == 0:
@@ -2980,9 +3020,6 @@ def on_mouse_down(event):
         point_ids.append(point_id)
         update_polygon_preview()
         rect_selected = False
-        if current_value == "99":
-            point_press = calculate_point_pressure(start_x, start_y)
-            show_polygon_point_pressure_text(len(polygon_points) - 1, start_x, start_y, point_press)
         
     elif mode == "circle":
         if range_on and circle_id is None:
@@ -3026,7 +3063,7 @@ def on_mouse_down(event):
                         return
 
             # 確定済み円がある状態では、円外クリックで新規作成を開始しない
-            if current_value == "99":
+            if current_value == "99" and should_show_point_pressure(is_confirm_click=False):
                 point_press = calculate_point_pressure(event.x, event.y)
                 show_point_pressure_text(event.x, event.y, point_press)
             return
@@ -3186,6 +3223,10 @@ def on_mouse_up(event):
 
         # ドラッグしていないクリックのみの場合は、点圧表示を維持して終了
         if abs(x2 - x1) <= 1 and abs(y2 - y1) <= 1:
+            range_on = "range_select_toggle_on" in globals() and range_select_toggle_on.get()
+            if (not range_on) and should_show_point_pressure(is_confirm_click=False):
+                point_press = calculate_point_pressure(event.x, event.y)
+                show_point_pressure_text(event.x, event.y, point_press)
             return
 
         # 既存の処理を保持
@@ -3204,7 +3245,7 @@ def on_mouse_up(event):
             conversion_factor = float(pixmm_entry.get())
 
         # ピクセル面積を表示（換算係数が設定されていない場合）
-        if conversion_factor and current_value == "99":
+        if conversion_factor and current_value == "99" and should_show_area_text():
             width_mm = pixel_width * conversion_factor
             height_mm = pixel_height * conversion_factor
             area_mm2 = width_mm * height_mm
@@ -3223,7 +3264,7 @@ def on_mouse_up(event):
                 tags="text",
                 font_tuple=font_tuple,
             )
-        elif current_value == "99":
+        elif current_value == "99" and should_show_area_text():
             display_text = f"選択範囲面積 {pixel_area:.3f}px²\n有効測定範囲面積 {px_count:.3f}px²"
             font_tuple = ("Arial", mm2fontsize)
             text_candidates = [
@@ -3262,7 +3303,7 @@ def on_mouse_up(event):
             canvas.delete("point_pressure")
             calculate_brightness2(polygon_points)
             mark_lowest_brightness_points()
-        elif current_value == "99" and point_for_click is not None:
+        elif current_value == "99" and point_for_click is not None and should_show_point_pressure(is_confirm_click=False):
             point_x, point_y = point_for_click
             point_press = calculate_point_pressure(point_x, point_y)
             show_point_pressure_text(point_x, point_y, point_press)
@@ -3301,7 +3342,7 @@ def on_mouse_up(event):
                     canvas.delete("point_pressure")
                     calculate_brightness3()
                     mark_lowest_brightness_points()
-                elif current_value == "99" and circle_click_point is not None:
+                elif current_value == "99" and circle_click_point is not None and should_show_point_pressure(is_confirm_click=False):
                     point_x, point_y = circle_click_point
                     point_press = calculate_point_pressure(point_x, point_y)
                     show_point_pressure_text(point_x, point_y, point_press)
