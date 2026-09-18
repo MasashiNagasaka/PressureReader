@@ -1286,6 +1286,7 @@ def set_conversion_factor():
     if no_image(canvas, root):
         return
 
+    enforce_exclusive_toggle("scaling")
     scaling_toggle_on.set(True)
     update_scaling_button_visual()
     update_mode_status_bar()
@@ -1530,9 +1531,34 @@ def update_iromihon_button_visual(hover=False):
         )
         button_iromihon.image = icon14 if hover else icon13
 
+
+def enforce_exclusive_toggle(active_name):
+    # Keep only one top-level toggle active at a time.
+    if active_name != "swatch":
+        if "swatch_toggle_on" in globals() and swatch_toggle_on.get():
+            swatch_toggle_on.set(False)
+            if globals().get("current_value") == "14":
+                set_mode_rect("99")
+            if "update_iromihon_button_visual" in globals():
+                update_iromihon_button_visual(hover=False)
+
+    if active_name != "scaling":
+        if "scaling_toggle_on" in globals() and scaling_toggle_on.get():
+            deactivate_scaling_mode(clear_lines=True)
+
+    if active_name != "range":
+        if "range_select_toggle_on" in globals() and range_select_toggle_on.get():
+            range_select_toggle_on.set(False)
+            if "update_range_select_button_visual" in globals():
+                update_range_select_button_visual()
+            if "apply_range_select_visibility" in globals():
+                apply_range_select_visibility()
+
+
 def toggle_swatch_mode():
     next_on = not swatch_toggle_on.get()
     if next_on:
+        enforce_exclusive_toggle("swatch")
         set_mode_rect("14")
     else:
         set_mode_rect("99")
@@ -3411,7 +3437,10 @@ def apply_range_select_visibility():
         button_Circle_mode.grid_remove()
 
 def toggle_range_selection_mode():
-    range_select_toggle_on.set(not range_select_toggle_on.get())
+    next_on = not range_select_toggle_on.get()
+    if next_on:
+        enforce_exclusive_toggle("range")
+    range_select_toggle_on.set(next_on)
     update_range_select_button_visual()
     apply_range_select_visibility()
     update_mode_status_bar()
