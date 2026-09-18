@@ -843,6 +843,38 @@ root.minsize(700, 680)
 main_frame = tk.Frame(root)
 main_frame.pack(fill=tk.BOTH, expand=True)
 
+# モード状態ステータスバー（メイン画面下部に常時表示）
+status_bar_frame = tk.Frame(root, bg="#f4f4f4", bd=1, relief=tk.SUNKEN)
+status_bar_frame.pack(side=tk.BOTTOM, fill=tk.X)
+status_bar_label = tk.Label(
+    status_bar_frame,
+    text="",
+    anchor="w",
+    bg="#f4f4f4",
+    fg="#333333",
+    font=("Meiryo ui", 9),
+    padx=8,
+    pady=2,
+)
+status_bar_label.pack(fill=tk.X)
+
+
+def update_mode_status_bar():
+    status_text = ""
+    swatch_on = "swatch_toggle_on" in globals() and swatch_toggle_on.get()
+    scaling_on = "scaling_toggle_on" in globals() and scaling_toggle_on.get()
+    range_on = "range_select_toggle_on" in globals() and range_select_toggle_on.get()
+    current_mode = globals().get("mode")
+
+    if swatch_on:
+        status_text = "モード：標準色見本の選択"
+    elif scaling_on:
+        status_text = "モード：スケーリングの設定"
+    elif range_on and current_mode in ("rect", "polygon", "circle"):
+        status_text = "モード：範囲選択"
+
+    status_bar_label.config(text=status_text)
+
 # Create canvas to display image
 canvas = tk.Canvas(main_frame)
 canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -1242,6 +1274,7 @@ def deactivate_scaling_mode(clear_lines=True):
     canvas.bind("<ButtonRelease-1>", on_mouse_up)
     scaling_toggle_on.set(False)
     update_scaling_button_visual()
+    update_mode_status_bar()
 
 def set_conversion_factor():
     global line_start, line_end, temp_line1, temp_line2, conversion_factor, scale, photo_ico
@@ -1255,6 +1288,7 @@ def set_conversion_factor():
 
     scaling_toggle_on.set(True)
     update_scaling_button_visual()
+    update_mode_status_bar()
 
     def custom_askfloat(title, prompt):
         dialog = tk.Toplevel(root)
@@ -1503,6 +1537,7 @@ def toggle_swatch_mode():
     else:
         set_mode_rect("99")
     update_iromihon_button_visual(hover=False)
+    update_mode_status_bar()
 
 def on_enter_iromihon(event):
     update_iromihon_button_visual(hover=True)
@@ -1618,10 +1653,10 @@ button_jouken.bind("<Leave>", on_leave_jouken)
 
 # 圧力表示*****************************************************************************************************************************
 label_ken = ttk.Label(button_frame, text="④選択範囲の検出値（MPa）：", style="Custom.TLabel")
-label_ken.grid(row=26, column=0, columnspan=4, padx=(5,0), pady=(20,0), sticky=tk.W)
+label_ken.grid(row=27, column=0, columnspan=4, padx=(5,0), pady=(20,0), sticky=tk.W)
 
 detected_value_frame = ttk.Frame(button_frame)
-detected_value_frame.grid(row=27, column=0, columnspan=4, padx=(11,12), pady=(0,0), sticky=tk.W)
+detected_value_frame.grid(row=28, column=0, columnspan=4, padx=(11,12), pady=(0,0), sticky=tk.W)
 
 label_detected_avg = ttk.Label(detected_value_frame, text="検出値（平均）", style="Custom4.TLabel")
 label_detected_avg.grid(row=0, column=0, padx=(0,0), pady=(8,0), sticky=tk.W)
@@ -2052,15 +2087,15 @@ label_slider = ttk.Label(
     text="高圧検出箇所",
     style="Custom.TLabel"
 )
-label_slider.grid(row=28, column=0, columnspan=4, padx=(10,0), pady=(5,0), sticky=tk.W)
+label_slider.grid(row=29, column=0, columnspan=4, padx=(10,0), pady=(5,0), sticky=tk.W)
 label_slider_setting = ttk.Label(button_frame, text="表示数の設定", font=("Meiryo ui", 9))
-label_slider_setting.grid(row=29, column=0, columnspan=4, padx=(10,0), pady=(0,0), sticky=tk.W)
+label_slider_setting.grid(row=30, column=0, columnspan=4, padx=(10,0), pady=(0,0), sticky=tk.W)
 slider_value = tk.StringVar()
 slider_value.set("0")
 label_20 = ttk.Label(button_frame, textvariable=slider_value)
-label_20.grid(row=30, column=0, padx=(10,0), pady=(5,0), sticky=tk.W)
+label_20.grid(row=31, column=0, padx=(10,0), pady=(5,0), sticky=tk.W)
 scale = ttk.Scale(button_frame, from_=0, to=100, orient="horizontal", length=105, command=update_label)
-scale.grid(row=30, column=1, columnspan=3, padx=(0,0), pady=(0,0), sticky=tk.W)
+scale.grid(row=31, column=1, columnspan=3, padx=(0,0), pady=(0,0), sticky=tk.W)
 
 
 
@@ -2201,7 +2236,7 @@ button_pressrange = ttk.Button(
 )
 
 button_pressrange.image = icon3  # 初期画像を保持
-button_pressrange.grid(row=25, column=0, columnspan=4, padx=(8, 0), pady=(10, 0), sticky=tk.W)
+button_pressrange.grid(row=26, column=0, columnspan=4, padx=(8, 0), pady=(10, 0), sticky=tk.W)
 
 
 
@@ -2762,7 +2797,7 @@ def update_polygon_preview():
 
 
 # 範囲選択モード切替
-def set_mode_rect(value):
+def set_mode_rect(value, clear_shapes=True):
     global mode, current_value, rect_selected, polygon_points, point_ids, polygon_id, moving_point, dragging
     global dragging_handle, center_x, center_y, radius, circle_id, oval_handles, radius_x, radius_y
     global circle_click_point, circle_dragged
@@ -2771,8 +2806,97 @@ def set_mode_rect(value):
         deactivate_scaling_mode(clear_lines=True)
     mode = "rect"
     current_value = value
-    rect_selected = True
-    canvas.delete("rect","text","line","mark","polygon","circle","point_pressure","polygon_preview")
+    if clear_shapes:
+        rect_selected = True
+        canvas.delete("rect","text","line","mark","polygon","circle","point_pressure","polygon_preview")
+        polygon_points = []
+        point_ids = []
+        polygon_id = None
+        moving_point = None
+        dragging = False
+        dragging_handle = None
+        center_x = center_y = radius = 0
+        circle_id = None
+        oval_handles = [None] * 4
+        radius_x = radius_y = 0
+        circle_click_point = None
+        circle_dragged = False
+        polygon_click_point = None
+        polygon_dragged = False
+    if "swatch_toggle_on" in globals():
+        swatch_toggle_on.set(value == "14")
+    if "update_iromihon_button_visual" in globals():
+        update_iromihon_button_visual(hover=False)
+    if "update_mode_status_bar" in globals():
+        update_mode_status_bar()
+
+def set_mode_polygon(clear_shapes=True):
+    global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging
+    global circle_click_point, circle_dragged
+    global polygon_click_point, polygon_dragged
+    if "scaling_toggle_on" in globals() and scaling_toggle_on.get():
+        deactivate_scaling_mode(clear_lines=True)
+    mode = "polygon"
+    if clear_shapes:
+        rect_selected = False
+        canvas.delete("mark","line","text","rect","polygon","circle","point_pressure","polygon_preview")
+        polygon_points = []
+        point_ids = []
+        polygon_id = None
+        moving_point = None
+        dragging = False
+        circle_click_point = None
+        circle_dragged = False
+        polygon_click_point = None
+        polygon_dragged = False
+    if "update_mode_status_bar" in globals():
+        update_mode_status_bar()
+    
+def set_mode_circle(clear_shapes=True):
+    global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging,dragging_handle,center_x,center_y,radius,circle_id
+    global circle_click_point, circle_dragged
+    global polygon_click_point, polygon_dragged
+    if "scaling_toggle_on" in globals() and scaling_toggle_on.get():
+        deactivate_scaling_mode(clear_lines=True)
+    mode = "circle"
+    if clear_shapes:
+        rect_selected = False
+        canvas.delete("mark","line","text","rect","polygon","circle","point_pressure","polygon_preview")
+        polygon_points = []
+        point_ids = []
+        polygon_id = None
+        moving_point = None
+        dragging = False
+
+        dragging_handle = None
+        center_x = center_y = radius = 0
+        circle_id = None
+        circle_click_point = None
+        circle_dragged = False
+        polygon_click_point = None
+        polygon_dragged = False
+    if "update_mode_status_bar" in globals():
+        update_mode_status_bar()
+
+
+def has_existing_selection_shape():
+    return bool(
+        rect_selected
+        or polygon_id is not None
+        or circle_id is not None
+        or canvas.find_withtag("rect")
+        or canvas.find_withtag("polygon")
+        or canvas.find_withtag("circle")
+    )
+
+
+def clear_selection_shapes_only():
+    global rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging
+    global dragging_handle, center_x, center_y, radius, circle_id, oval_handles, radius_x, radius_y
+    global circle_click_point, circle_dragged, polygon_click_point, polygon_dragged
+    canvas.delete("rect", "text", "line", "mark", "polygon", "circle", "point_pressure", "polygon_preview")
+    rect = None
+    rect_selected = False
     polygon_points = []
     point_ids = []
     polygon_id = None
@@ -2787,52 +2911,6 @@ def set_mode_rect(value):
     circle_dragged = False
     polygon_click_point = None
     polygon_dragged = False
-    if "swatch_toggle_on" in globals():
-        swatch_toggle_on.set(value == "14")
-    if "update_iromihon_button_visual" in globals():
-        update_iromihon_button_visual(hover=False)
-
-def set_mode_polygon():
-    global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging
-    global circle_click_point, circle_dragged
-    global polygon_click_point, polygon_dragged
-    if "scaling_toggle_on" in globals() and scaling_toggle_on.get():
-        deactivate_scaling_mode(clear_lines=True)
-    mode = "polygon"
-    rect_selected = False
-    canvas.delete("mark","line","text","rect","polygon","circle","point_pressure","polygon_preview")
-    polygon_points = []
-    point_ids = []
-    polygon_id = None
-    moving_point = None
-    dragging = False
-    circle_click_point = None
-    circle_dragged = False
-    polygon_click_point = None
-    polygon_dragged = False
-    
-def set_mode_circle():
-    global mode, rect_selected, rect, polygon_points, point_ids, polygon_id, moving_point, dragging,dragging_handle,center_x,center_y,radius,circle_id
-    global circle_click_point, circle_dragged
-    global polygon_click_point, polygon_dragged
-    if "scaling_toggle_on" in globals() and scaling_toggle_on.get():
-        deactivate_scaling_mode(clear_lines=True)
-    mode = "circle"
-    rect_selected = False
-    canvas.delete("mark","line","text","rect","polygon","circle","point_pressure","polygon_preview")
-    polygon_points = []
-    point_ids = []
-    polygon_id = None
-    moving_point = None
-    dragging = False
-
-    dragging_handle = None
-    center_x = center_y = radius = 0
-    circle_id = None
-    circle_click_point = None
-    circle_dragged = False
-    polygon_click_point = None
-    polygon_dragged = False
 
 
 def on_mouse_down(event):
@@ -2842,11 +2920,24 @@ def on_mouse_down(event):
 
     if no_image(canvas, root):
         return
+
+    range_on = "range_select_toggle_on" in globals() and range_select_toggle_on.get()
+    if not range_on:
+        # OFF時は既存図形の編集のみ許可し、新規作成開始は抑止
+        if mode == "rect" and current_value == "99":
+            return
+        if mode == "polygon" and polygon_id is None:
+            return
+        if mode == "circle" and circle_id is None:
+            return
+
     if current_value == "99":
         if not are_all_entries_valid(all_entries, ondo_entry, shitsudo_entry):
             return
     
     if mode == "rect":
+        if range_on and has_existing_selection_shape():
+            clear_selection_shapes_only()
         start_x = event.x
         start_y = event.y
         rect_selected = True
@@ -2857,6 +2948,16 @@ def on_mouse_down(event):
             show_point_pressure_text(start_x, start_y, point_press)
         
     elif mode == "polygon":
+        if range_on and polygon_id is None and len(polygon_points) == 0:
+            has_old_shape = bool(
+                circle_id is not None
+                or rect_selected
+                or canvas.find_withtag("rect")
+                or canvas.find_withtag("circle")
+                or canvas.find_withtag("polygon")
+            )
+            if has_old_shape:
+                clear_selection_shapes_only()
         if polygon_id:
             polygon_click_point = (event.x, event.y)
             polygon_dragged = False
@@ -2884,6 +2985,16 @@ def on_mouse_down(event):
             show_polygon_point_pressure_text(len(polygon_points) - 1, start_x, start_y, point_press)
         
     elif mode == "circle":
+        if range_on and circle_id is None:
+            has_old_shape = bool(
+                polygon_id is not None
+                or rect_selected
+                or canvas.find_withtag("rect")
+                or canvas.find_withtag("polygon")
+                or canvas.find_withtag("circle")
+            )
+            if has_old_shape:
+                clear_selection_shapes_only()
         moving_circle = False
         dragging_handle = None
         drawing_circle = False  # 初期化
@@ -3234,17 +3345,62 @@ def update_circle():
     top_circle_py = center_y - radius_y
 
 
-label_ken = ttk.Label(button_frame, text="③範囲選択形状：", style="Custom.TLabel")
+label_ken = ttk.Label(button_frame, text="③範囲選択：", style="Custom.TLabel")
 label_ken.grid(row=20, column=0, columnspan=4, padx=(5,0), pady=(10,0), sticky=tk.W)
 
+range_select_toggle_on = tk.BooleanVar(value=False)
+range_select_button_off_bg = None
+
+def update_range_select_button_visual():
+    if range_select_button_off_bg is None:
+        return
+    if range_select_toggle_on.get():
+        button_range_select.config(bg=TOGGLE_ON_COLOR, activebackground=TOGGLE_ON_COLOR)
+    else:
+        button_range_select.config(bg=range_select_button_off_bg, activebackground=range_select_button_off_bg)
+
+def apply_range_select_visibility():
+    if range_select_toggle_on.get():
+        button_Region_mode.grid()
+        button_Polygon_mode.grid()
+        button_Circle_mode.grid()
+    else:
+        button_Region_mode.grid_remove()
+        button_Polygon_mode.grid_remove()
+        button_Circle_mode.grid_remove()
+
+def toggle_range_selection_mode():
+    range_select_toggle_on.set(not range_select_toggle_on.get())
+    update_range_select_button_visual()
+    apply_range_select_visibility()
+    update_mode_status_bar()
+
+button_range_select = tk.Button(button_frame, text="範囲選択", width=9, command=toggle_range_selection_mode)
+button_range_select.grid(row=21, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
+range_select_button_off_bg = button_range_select.cget("bg")
+update_range_select_button_visual()
+
+def select_rect_mode_from_ui():
+    keep_existing = range_select_toggle_on.get() and has_existing_selection_shape()
+    set_mode_rect("99", clear_shapes=not keep_existing)
+
+def select_polygon_mode_from_ui():
+    keep_existing = range_select_toggle_on.get() and has_existing_selection_shape()
+    set_mode_polygon(clear_shapes=not keep_existing)
+
+def select_circle_mode_from_ui():
+    keep_existing = range_select_toggle_on.get() and has_existing_selection_shape()
+    set_mode_circle(clear_shapes=not keep_existing)
+
 modevar = tk.IntVar()
-button_Region_mode = ttk.Radiobutton(button_frame, text="四角形モード", variable=modevar, value=1, width=24, command=lambda: set_mode_rect("99"))
-button_Region_mode.grid(row=21, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
-button_Polygon_mode = ttk.Radiobutton(button_frame, text="多角形モード", variable=modevar, value=2, width=24, command=lambda: set_mode_polygon())
-button_Polygon_mode.grid(row=22, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
-button_Circle_mode = ttk.Radiobutton(button_frame, text="円形モード", variable=modevar, value=3, width=24, command=lambda: set_mode_circle())
-button_Circle_mode.grid(row=23, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
+button_Region_mode = ttk.Radiobutton(button_frame, text="四角形モード", variable=modevar, value=1, width=24, command=select_rect_mode_from_ui)
+button_Region_mode.grid(row=22, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
+button_Polygon_mode = ttk.Radiobutton(button_frame, text="多角形モード", variable=modevar, value=2, width=24, command=select_polygon_mode_from_ui)
+button_Polygon_mode.grid(row=23, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
+button_Circle_mode = ttk.Radiobutton(button_frame, text="円形モード", variable=modevar, value=3, width=24, command=select_circle_mode_from_ui)
+button_Circle_mode.grid(row=24, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
 button_Region_mode.state(['selected'])
+apply_range_select_visibility()
 
 
 def clear_selectarea():
@@ -3351,6 +3507,13 @@ def reset_to_startup_state():
     apply_threshold_flag.set(False)
     modevar.set(1)
     set_mode_rect("99")
+    if "range_select_toggle_on" in globals():
+        range_select_toggle_on.set(False)
+    if "update_range_select_button_visual" in globals():
+        update_range_select_button_visual()
+    if "apply_range_select_visibility" in globals():
+        apply_range_select_visibility()
+    update_mode_status_bar()
 
 
 def confirm_reset_window():
@@ -3387,7 +3550,7 @@ def confirm_image_switch():
         image_switch_confirm_open = False
 
 button_clear = ttk.Button(button_frame, text="選択範囲クリア", width=24, command=clear_selectarea)
-button_clear.grid(row=24, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
+button_clear.grid(row=25, column=0, columnspan=4, padx=(8,0), pady=(0,0), sticky=tk.W)
 
 
 
@@ -4058,10 +4221,10 @@ button_xl = ttk.Button(
 )
 
 label_syuturyoku = ttk.Label(button_frame, text="⑤出力：", style="Custom.TLabel")
-label_syuturyoku.grid(row=31, column=0, columnspan=4, padx=(5,0), pady=(8,0), sticky=tk.W)
+label_syuturyoku.grid(row=32, column=0, columnspan=4, padx=(5,0), pady=(8,0), sticky=tk.W)
 
 button_xl.image = icon9
-button_xl.grid(row=32, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
+button_xl.grid(row=33, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_xl.bind("<Enter>", on_enter_xl)
 button_xl.bind("<Leave>", on_leave_xl)
 
@@ -4144,10 +4307,10 @@ button_reset_window = ttk.Button(
 )
 
 label_clear_input = ttk.Label(button_frame, text="⑥入力内容クリア：", style="Custom.TLabel")
-label_clear_input.grid(row=33, column=0, columnspan=4, padx=(5,0), pady=(10,0), sticky=tk.W)
+label_clear_input.grid(row=34, column=0, columnspan=4, padx=(5,0), pady=(10,0), sticky=tk.W)
 
 button_reset_window.image = icon15
-button_reset_window.grid(row=34, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
+button_reset_window.grid(row=35, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 button_reset_window.bind("<Enter>", on_enter_reset_window)
 button_reset_window.bind("<Leave>", on_leave_reset_window)
 
@@ -4327,10 +4490,10 @@ def show_contact_info():
 
 
 label_contact = ttk.Label(button_frame, text="⑦お問い合わせ：", style="Custom.TLabel")
-label_contact.grid(row=35, column=0, columnspan=4, padx=(5, 0), pady=(10, 0), sticky=tk.W)
+label_contact.grid(row=36, column=0, columnspan=4, padx=(5, 0), pady=(10, 0), sticky=tk.W)
 
 button_contact = ttk.Button(button_frame, text="問い合わせ先", command=show_contact_info)
-button_contact.grid(row=36, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
+button_contact.grid(row=37, column=0, columnspan=4, padx=(8, 0), pady=(0, 0), sticky=tk.W)
 
 # 「解析条件をコピー」は自然幅のまま維持し、
 # 「画面リセット」は実表示幅で合わせる。
@@ -4391,6 +4554,7 @@ mode = "rect"
 rect_selected = True
 clear_detected_value_entries()
 set_mode_rect("99")
+update_mode_status_bar()
 
 canvas.bind("<Configure>", resize_image)
 
